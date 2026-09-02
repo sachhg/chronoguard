@@ -21,6 +21,14 @@ Quick start::
     ])
     result.kept             # only doc-1
     result.filtered_count   # 1
+
+Wrap a tool so the agent can only ever see the survivors::
+
+    from chronoguard import MappingAdapter, guarded_tool
+
+    @guarded_tool(guard, MappingAdapter(source_key="url", published_key="date"))
+    def web_search(query: str) -> list[dict]:
+        ...
 """
 
 from chronoguard.evidence import EvidenceRecord, parse_timestamp
@@ -32,17 +40,35 @@ from chronoguard.guard import (
     Verdict,
     guard_records,
 )
+from chronoguard.interception import (
+    AuditLog,
+    EvidenceAdapter,
+    GuardedTool,
+    MappingAdapter,
+    RecordAdapter,
+    ToolCall,
+    guard_tool,
+    guarded_tool,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "AuditLog",
+    "EvidenceAdapter",
     "EvidenceRecord",
     "FilterResult",
     "GuardPolicy",
+    "GuardedTool",
     "Judgement",
+    "MappingAdapter",
+    "RecordAdapter",
     "TemporalGuard",
+    "ToolCall",
     "Verdict",
     "__version__",
     "guard_records",
+    "guard_tool",
+    "guarded_tool",
     "parse_timestamp",
 ]

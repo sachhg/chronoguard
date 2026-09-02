@@ -25,8 +25,8 @@ order.
 
 ## Status
 
-Early. Phase 0 (scaffolding) and Phase 1 (the temporal filter) are done. See
-[PLAN.md](PLAN.md) for what lands next.
+Early. Phases 0 to 2 are done: the temporal filter, tool-call interception, and
+deterministic fixture tools. See [PLAN.md](PLAN.md) for what lands next.
 
 ## Layer 1: filtering evidence
 
@@ -80,6 +80,73 @@ experiment. If you want a full day, name the next midnight: `2023-06-02T00:00:00
 
 Records that `warn` lets through still count as violations, so `kept` never gets
 mistaken for clean.
+
+## Guarding a tool
+
+Wrap any callable that returns evidence. The agent calls it normally and only
+sees what survived.
+
+```python
+from chronoguard import AuditLog, MappingAdapter, TemporalGuard, guarded_tool
+
+guard = TemporalGuard("2023-06-01T00:00:00Z")
+audit = AuditLog()
+
+@guarded_tool(guard, MappingAdapter(
+    content_key=("title", "snippet"),
+    source_key="url",
+    published_key="date",
+), audit=audit)
+def web_search(query: str, limit: int = 5) -> list[dict]:
+    """Search the web."""
+    return my_search_api(query, limit)
+
+hits = web_search("meridian pricing")   # list[EvidenceRecord], pre-as-of only
+
+audit.filtered_count   # how many got dropped
+audit.by_tool()        # {'web_search': {'calls': .., 'total': .., 'kept': .., 'filtered': ..}}
+audit.summary()
+```
+
+The adapter is what makes this work for arbitrary tools. Search APIs, vector
+stores and SQL rows all name their fields differently, so each tool brings a
+small mapping and the filtering stays in one place:
+
+- `MappingAdapter` for dict-shaped output. Handles multiple content fields,
+  fallback id fields, wrapper dicts (`results_key`), and puts leftover fields
+  in `metadata`.
+- `RecordAdapter` (the default) for tools that already return `EvidenceRecord`s.
+- Any plain `raw -> list[EvidenceRecord]` function.
+
+Counts live on the `AuditLog`, not in the return value, so what the agent sees
+stays clean. Share one log across every tool an agent gets and the report can
+name which tool was leakiest. `guard_tool(fn, guard, adapter)` is the
+non-decorator form. The wrapper keeps the tool's name, docstring and signature,
+so agent frameworks can still build a schema from it.
+
+Only wrap tools that return evidence. A calculator has nothing to filter.
+
+## Fixture tools
+
+`chronoguard.fixtures` ships two guarded tools over local corpora, no network
+needed. They're about a made-up company launching a made-up product in 2023,
+which is the point: no model has this in its weights, so a post-as-of string
+showing up in an answer came through a tool and nowhere else.
+
+```python
+from chronoguard import TemporalGuard
+from chronoguard.fixtures import FIXTURE_AS_OF, POST_AS_OF_CANARIES, build_fixture_toolset
+
+tools = build_fixture_toolset(TemporalGuard(FIXTURE_AS_OF))
+tools["web_search"]("meridian price launch", limit=99)
+tools["document_store"]("meridian pricing", k=99)
+```
+
+The corpora contain pre-as-of documents carrying the plausible wrong answer
+(analysts guessing "below $3,000"), the real answers in post-as-of documents
+only, a document sitting exactly on the boundary instant, and undated documents
+that deliberately hold future facts. `POST_AS_OF_CANARIES` lists the strings
+that should never reach an agent, so tests can just grep for them.
 
 ## Install
 
