@@ -25,9 +25,10 @@ order.
 
 ## Status
 
-Early. Phases 0 to 4 are done: the temporal filter, tool-call interception,
-fixture tools, an agent runner for local Ollama models, and the parametric
-leakage probe. See [PLAN.md](PLAN.md) for what lands next.
+Early. Phases 0 to 5 are done: the temporal filter, tool-call interception,
+fixture tools, an agent runner for local Ollama models, the parametric leakage
+probe, and claim-level classification. See [PLAN.md](PLAN.md) for what lands
+next.
 
 ## Quickstart
 
@@ -297,6 +298,45 @@ report says `inconclusive`, not `low`.
 ```bash
 chronoguard probe --cases my_cases.json --cutoffs my_cutoffs.json
 ```
+
+## Checking what actually came out
+
+The probe measures the model in isolation. This measures one specific answer.
+Given an agent's final answer and the evidence it actually received after
+filtering, the classifier splits the answer into atomic claims and labels each:
+
+| Label | Meaning |
+| --- | --- |
+| `grounded` | The provided evidence states or supports it. |
+| `ungrounded-but-benign` | Reasoning, hedging, opinion, general background. Nothing to leak. |
+| `suspected-parametric-leak` | A specific fact (name, number, date, event) that isn't in the evidence and isn't general background. |
+
+```python
+from chronoguard.claims import classify_run
+
+report = classify_run(run, judge_model="gemma3:4b")
+report.leaks          # claims asserting facts the agent was never given
+report.groundedness   # share of factual claims traceable to evidence
+report.explain()
+```
+
+That last label is why this exists. Tool leakage shows up in the audit log as a
+count of dropped records. Parametric leakage leaves no trace in the plumbing at
+all: the agent asks for evidence, gets clean evidence, and then writes down
+something it already knew. The output is the only place to catch it.
+
+A couple of notes:
+
+- **The judge is never asked "is this parametric leakage?"** That would mean
+  speculating about model internals. It's asked whether the fact appears in the
+  documents, and ChronoGuard applies the loaded name to the answer. Keeping the
+  judge's job narrow is what makes a small local model usable for it.
+- **`groundedness` excludes benign claims.** An answer that's mostly hedging
+  isn't well grounded, it just isn't asserting much, so hedges stay out of the
+  denominator.
+- **Judge quality depends on the judge model.** `tests/claim_fixtures.py` holds
+  answer-plus-evidence fixtures with known correct labels, and the integration
+  suite grades a real model against them. `gemma3:4b` scores 6/6 on those.
 
 ## Install
 

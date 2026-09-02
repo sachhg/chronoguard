@@ -87,7 +87,7 @@ Modules: `chronoguard/probe.py`, `chronoguard/data/model_cutoffs.*`
 - Unit tests for scoring against synthetic fixtures, plus an integration test
   against a real local model.
 
-## Phase 5: claim-level leakage classification
+## Phase 5: claim-level leakage classification (done)
 
 Module: `chronoguard/claims.py`
 
