@@ -1,17 +1,48 @@
 """ChronoGuard: a point-in-time leakage guard for LLM agents.
 
-ChronoGuard lets you run an arbitrary LLM agent *as if* it were operating at a
-past date, and measures how well that blinding actually holds.
+ChronoGuard runs an LLM agent as if it were operating at a past date, then
+measures how well that blinding actually holds.
 
-Two independent leakage channels are handled separately (see DESIGN.md):
+Two separate leakage channels, handled separately (see DESIGN.md):
 
-* **Tool leakage** -- the agent retrieves evidence published after the as-of
-  date. Fixed by filtering: :mod:`chronoguard.evidence`, :mod:`chronoguard.guard`.
-* **Parametric leakage** -- the model's own weights already encode post-as-of
-  facts. Not fixable by filtering; only measurable. Handled by the probing and
-  claim-classification layers.
+* **Tool leakage**: the agent retrieves evidence published after the as-of date.
+  Fixable by filtering, which is `chronoguard.evidence` and `chronoguard.guard`.
+* **Parametric leakage**: the model's weights already encode post-as-of facts.
+  Filtering can't touch it, so it gets probed and measured instead.
+
+Quick start::
+
+    from chronoguard import EvidenceRecord, TemporalGuard
+
+    guard = TemporalGuard("2023-06-01T00:00:00Z")
+    result = guard.filter([
+        EvidenceRecord.from_source("...", "doc-1", published_at="2023-05-04T09:00:00Z"),
+        EvidenceRecord.from_source("...", "doc-2", published_at="2023-08-11T09:00:00Z"),
+    ])
+    result.kept             # only doc-1
+    result.filtered_count   # 1
 """
+
+from chronoguard.evidence import EvidenceRecord, parse_timestamp
+from chronoguard.guard import (
+    FilterResult,
+    GuardPolicy,
+    Judgement,
+    TemporalGuard,
+    Verdict,
+    guard_records,
+)
 
 __version__ = "0.1.0"
 
-__all__ = ["__version__"]
+__all__ = [
+    "EvidenceRecord",
+    "FilterResult",
+    "GuardPolicy",
+    "Judgement",
+    "TemporalGuard",
+    "Verdict",
+    "__version__",
+    "guard_records",
+    "parse_timestamp",
+]
