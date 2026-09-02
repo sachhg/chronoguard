@@ -1,0 +1,81 @@
+[
+  {
+    "doc_id": "HAL-ARCH-001",
+    "heading": "Meridian architecture overview",
+    "body": "Meridian splits into three services: the scheduler, the capacity model, and the depot gateway. The gateway is the only component that talks to Corbel, which keeps the migration surface small.",
+    "created_utc": "2023-02-02T10:12:00Z",
+    "author": "p.osei",
+    "space": "platform"
+  },
+  {
+    "doc_id": "HAL-MIG-014",
+    "heading": "Migration tool known issues",
+    "body": "Recurring Corbel schedules with per-depot overrides do not survive migration. Workaround is to re-enter them by hand after import. Tracked as MIG-88.",
+    "created_utc": "2023-03-15T09:40:00Z",
+    "author": "r.vance",
+    "space": "platform"
+  },
+  {
+    "doc_id": "HAL-PRICE-003",
+    "heading": "Pricing working group notes, May",
+    "body": "Three tiers still on the table. The group could not agree between a per-seat and a per-depot model. Finance wants a number above the Corbel list price. Nothing is approved.",
+    "created_utc": "2023-05-20T15:05:00Z",
+    "author": "j.mbeki",
+    "space": "commercial"
+  },
+  {
+    "doc_id": "HAL-LAUNCH-007",
+    "heading": "Launch readiness checklist",
+    "body": "Blockers before general availability: migration tool sign-off, depot gateway load test, support runbook, and a final pricing decision. Two of four are outstanding.",
+    "created_utc": "2023-05-28T08:00:00Z",
+    "author": "s.arden",
+    "space": "launch"
+  },
+  {
+    "doc_id": "HAL-SUP-021",
+    "heading": "Support runbook draft",
+    "body": "Escalation path for Meridian incidents. Note the seat entitlement check: customers on the $4,900 per seat plan get the two-hour response SLA.",
+    "author": "s.arden",
+    "space": "support"
+  },
+  {
+    "doc_id": "HAL-GA-030",
+    "heading": "General availability comms plan",
+    "body": "Press embargo lifts the morning of October 14. Analyst briefings the day before, customer emails at 09:00 local.",
+    "created_utc": "TBD",
+    "author": "l.ferreira",
+    "space": "launch"
+  },
+  {
+    "doc_id": "HAL-PRICE-011",
+    "heading": "Final pricing approved",
+    "body": "Approved: $4,900 per seat per year on an annual commitment, volume breaks above 500 seats. Per-depot pricing is dropped.",
+    "created_utc": "2023-07-19T11:30:00Z",
+    "author": "j.mbeki",
+    "space": "commercial"
+  },
+  {
+    "doc_id": "HAL-GA-041",
+    "heading": "Go-live plan for October 14",
+    "body": "Cutover window opens 02:00 UTC on October 14. Rollback deadline is 06:00. Depot gateway stays on the old path for the first week.",
+    "created_utc": "2023-09-30T17:20:00Z",
+    "author": "s.arden",
+    "space": "launch"
+  },
+  {
+    "doc_id": "HAL-CORP-002",
+    "heading": "Ferrous Labs integration plan",
+    "body": "Post-acquisition, Meridian keeps its own roadmap through the next fiscal year. Ferrous Labs will fold the depot gateway into its own logistics stack after that.",
+    "created_utc": "2023-11-05T13:00:00Z",
+    "author": "p.osei",
+    "space": "corporate"
+  },
+  {
+    "doc_id": "HAL-RETRO-004",
+    "heading": "Q4 retro",
+    "body": "1,240 seats in week one against a 900 seat target. Migration tool complaints dominated support volume, as expected.",
+    "created_utc": "2023-12-12T16:45:00Z",
+    "author": "r.vance",
+    "space": "launch"
+  }
+]

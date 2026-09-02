@@ -1,0 +1,106 @@
+[
+  {
+    "url": "https://tildepress.example/halden-teases-meridian",
+    "title": "Halden Systems teases Meridian, its next-gen scheduling platform",
+    "snippet": "Halden Systems used its winter partner call to trail a platform codenamed Meridian, aimed at logistics scheduling. No date, no pricing, and executives declined to say whether it replaces the ageing Corbel suite.",
+    "date": "2023-01-17T09:00:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://tildepress.example/meridian-private-beta",
+    "title": "Meridian private beta opens to 40 design partners",
+    "snippet": "Forty companies now have hands on Meridian. Halden says the beta covers scheduling and capacity planning, with the migration tooling landing later.",
+    "date": "2023-02-08T14:30:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://ledger-weekly.example/meridian-price-guess",
+    "title": "Analysts peg Meridian below $3,000 per seat",
+    "snippet": "Two analyst notes this week put Meridian in the $2,400 to $2,900 per seat range, reasoning from Corbel's current list price. Halden has not commented on pricing.",
+    "date": "2023-03-22T11:15:00Z",
+    "domain": "ledger-weekly.example"
+  },
+  {
+    "url": "https://tildepress.example/halden-platform-vp",
+    "title": "Halden hires a platform VP ahead of the Meridian rollout",
+    "snippet": "Halden Systems has hired a VP of Platform from a rival scheduling vendor, a signal that the Meridian rollout is being taken seriously internally.",
+    "date": "2023-04-11T08:00:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://logistics-desk.example/meridian-india-pilot",
+    "title": "Meridian pilot lands at a Pune logistics firm",
+    "snippet": "A mid-sized Pune freight operator has become the first named Meridian pilot outside Halden's home market. The pilot covers depot scheduling only.",
+    "date": "2023-04-02T10:00:00+05:30",
+    "domain": "logistics-desk.example"
+  },
+  {
+    "url": "https://ledger-weekly.example/meridian-migration-rough",
+    "title": "Beta users say Meridian's migration tool is rough",
+    "snippet": "Design partners report that moving Corbel schedules into Meridian still needs hand-holding. Halden acknowledges the migration tool is incomplete.",
+    "date": "2023-05-09T16:45:00Z",
+    "domain": "ledger-weekly.example"
+  },
+  {
+    "url": "https://tildepress.example/halden-summer-window",
+    "title": "Halden confirms a summer launch window for Meridian",
+    "snippet": "Halden has confirmed Meridian will ship in summer, without naming a date or a price. The company says pricing will be announced closer to general availability.",
+    "date": "2023-05-31T23:59:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://tildepress.example/halden-launch-event-scheduled",
+    "title": "Halden schedules a Meridian launch event",
+    "snippet": "Invitations went out this morning for a Meridian launch event. Halden still has not named a ship date or a price.",
+    "date": "2023-06-01T00:00:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://ledger-weekly.example/meridian-pricing-explainer",
+    "title": "Meridian pricing, explained",
+    "snippet": "Meridian lists at $4,900 per seat on an annual commitment, with volume breaks above 500 seats. Halden positions this well above the outgoing Corbel suite.",
+    "domain": "ledger-weekly.example"
+  },
+  {
+    "url": "https://logistics-desk.example/halden-ownership-rumour",
+    "title": "Who actually owns Halden Systems now?",
+    "snippet": "Following the Ferrous Labs deal, Halden's roadmap commitments are being re-examined by customers who signed multi-year Meridian contracts.",
+    "date": "last spring",
+    "domain": "logistics-desk.example"
+  },
+  {
+    "url": "https://tildepress.example/meridian-capacity-planning-preview",
+    "title": "A first look at Meridian capacity planning",
+    "snippet": "The capacity planning module is the part of Meridian design partners keep asking about. This is what it looks like in the current beta build.",
+    "date": "2023-04-02T10:00:00",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://tildepress.example/meridian-ship-date-and-price",
+    "title": "Meridian to ship October 14 at $4,900 per seat",
+    "snippet": "Halden Systems has named October 14 as the Meridian general availability date and set list pricing at $4,900 per seat per year, well above analyst expectations.",
+    "date": "2023-08-14T13:00:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://ledger-weekly.example/meridian-goes-live",
+    "title": "Meridian goes live, Halden claims 1,240 seats in week one",
+    "snippet": "Meridian reached general availability on October 14. Halden says 1,240 seats sold in the first week, mostly conversions from the Corbel suite.",
+    "date": "2023-10-14T15:00:00Z",
+    "domain": "ledger-weekly.example"
+  },
+  {
+    "url": "https://tildepress.example/ferrous-labs-acquires-halden",
+    "title": "Ferrous Labs acquires Halden Systems for $310 million",
+    "snippet": "Ferrous Labs has agreed to buy Halden Systems for $310 million in cash and stock, six weeks after the Meridian launch.",
+    "date": "2023-11-02T07:30:00Z",
+    "domain": "tildepress.example"
+  },
+  {
+    "url": "https://logistics-desk.example/meridian-outage",
+    "title": "Meridian outage knocks out scheduling for three customers",
+    "snippet": "A six-hour Meridian outage left three large customers unable to schedule depot slots. Ferrous Labs, which now owns Halden, declined to comment.",
+    "date": "2024-01-09T19:00:00Z",
+    "domain": "logistics-desk.example"
+  }
+]
