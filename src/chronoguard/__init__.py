@@ -33,6 +33,15 @@ Wrap a tool so the agent can only ever see the survivors::
 
 from chronoguard.evidence import EvidenceRecord, parse_timestamp
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
+from chronoguard.probe import (
+    CutoffRisk,
+    LeakageProbe,
+    ModelCutoffs,
+    ProbeCase,
+    ProbeReport,
+    load_model_cutoffs,
+    load_probe_cases,
+)
 from chronoguard.guard import (
     FilterResult,
     GuardPolicy,
@@ -60,15 +69,20 @@ __all__ = [
     "AgentRun",
     "AgentRunner",
     "AuditLog",
+    "CutoffRisk",
     "EvidenceAdapter",
     "EvidenceRecord",
     "FilterResult",
     "GuardPolicy",
     "GuardedTool",
     "Judgement",
+    "LeakageProbe",
     "MappingAdapter",
+    "ModelCutoffs",
     "OllamaClient",
     "OllamaUnavailable",
+    "ProbeCase",
+    "ProbeReport",
     "RecordAdapter",
     "TemporalGuard",
     "ToolCall",
@@ -77,6 +91,8 @@ __all__ = [
     "guard_records",
     "guard_tool",
     "guarded_tool",
+    "load_model_cutoffs",
+    "load_probe_cases",
     "parse_timestamp",
     "run_agent",
 ]

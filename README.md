@@ -25,9 +25,9 @@ order.
 
 ## Status
 
-Early. Phases 0 to 3 are done: the temporal filter, tool-call interception,
-fixture tools, and an agent runner for local Ollama models. See
-[PLAN.md](PLAN.md) for what lands next.
+Early. Phases 0 to 4 are done: the temporal filter, tool-call interception,
+fixture tools, an agent runner for local Ollama models, and the parametric
+leakage probe. See [PLAN.md](PLAN.md) for what lands next.
 
 ## Quickstart
 
@@ -35,6 +35,7 @@ fixture tools, and an agent runner for local Ollama models. See
 ollama serve &                # if it isn't already running
 chronoguard models            # what's installed, and can it call tools natively
 chronoguard run "When will Halden ship Meridian, and what will it cost per seat?"
+chronoguard probe --as-of 2023-06-01T00:00:00Z    # what does it already know?
 ```
 
 That runs an agent against the packaged fixture corpora, guarded at
@@ -221,6 +222,81 @@ Two things the runner does on purpose:
 
 It also refuses to start if a tool's guard disagrees with the run's `as_of`,
 which is otherwise a silent footgun: prompt says one date, filter uses another.
+
+## Measuring what filtering can't fix
+
+Everything above handles tool leakage. None of it touches what the model already
+knows. The probe measures that directly: it asks questions whose answers only
+became knowable after the as-of date, gives the model no tools at all, and
+counts how many it gets right. A correct answer with zero evidence in context
+came from the weights.
+
+```bash
+chronoguard probe --as-of 2023-06-01T00:00:00Z --max-future 4 --max-control 3
+```
+
+```
+gemma3:4b at 2023-06-01: leakage 3/4 (75%), control 3/3 (100%), risk high, cutoff risk high
+
+gemma3:4b was trained on data up to about 2024-08-01, which is after the simulated
+date 2023-06-01. The model has read past the moment you are trying to reconstruct.
+Filtering cannot undo that.
+
+asked with no tools:
+  LEAK [future ] vision-pro-price       '$3,499'
+  LEAK [future ] nobel-peace-2023       'Narges Mohammadi.'
+  LEAK [future ] openai-ouster          'Sam Altman was removed as chief executive of OpenAI...'
+    .  [future ] uk-pm-2024             'I DO NOT KNOW.'
+  ok   [control] gpt4-release           'GPT-4'
+  ok   [control] chatgpt-launch         'ChatGPT'
+  ok   [control] github-acquisition     'Microsoft.'
+```
+
+That's the point of the whole project in one screen. The agent run above looked
+perfectly clean, because the guard did its job. The same model, asked directly,
+hands over three facts from after the as-of date without being given a single
+document. No filter can fix that. You either pick a model whose training predates
+your as-of date, or you report the number.
+
+```python
+from chronoguard.probe import LeakageProbe
+
+report = LeakageProbe().run("gemma3:4b", "2023-06-01T00:00:00Z")
+report.leakage_score   # share of post-as-of facts produced with no evidence
+report.control_score   # share of already-knowable facts it got right
+report.risk_level      # high / elevated / low / inconclusive
+report.explain()
+```
+
+### Why there's a control group
+
+A model that scores zero on the future questions might be well blinded, or it
+might just be bad at questions. Those look identical in a leakage number. So
+every case is a probe or a control depending on where you point it: answers
+knowable before the as-of date run as controls. Score zero on both and the
+report says `inconclusive`, not `low`.
+
+### Three deliberate choices
+
+- **The probe never tells the model to pretend it's a past date.** That would
+  measure instruction-following, not knowledge. We want it trying its hardest.
+- **Self-reported cutoffs aren't trusted.** `model_cutoffs.json` is a prior, not
+  evidence. It decides whether a run gets flagged before scoring starts. Vendors
+  are vague, post-training blurs the line, and models misreport their own cutoff
+  in both directions. Edit it freely, approximate is fine.
+- **Scoring is exact, then fuzzy, then an optional LLM judge.** Fuzzy slides a
+  window the width of the expected answer so a long reply can't dilute the
+  score. The judge only runs when the cheap paths fail and the model didn't
+  refuse.
+
+### Extending the case set
+
+`src/chronoguard/data/probe_cases.json` holds question, answer, aliases and
+`knowable_from`. Add your own, or point at a different file:
+
+```bash
+chronoguard probe --cases my_cases.json --cutoffs my_cutoffs.json
+```
 
 ## Install
 

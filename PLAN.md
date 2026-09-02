@@ -70,7 +70,7 @@ Modules: `chronoguard/ollama.py`, `chronoguard/agent.py`
 - Integration test: a full loop against a locally installed model, asserting no
   post-as-of fixture content reaches the final answer or its cited sources.
 
-## Phase 4: parametric leakage probe
+## Phase 4: parametric leakage probe (done)
 
 Modules: `chronoguard/probe.py`, `chronoguard/data/model_cutoffs.*`
 
