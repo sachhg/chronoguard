@@ -2,31 +2,30 @@
 
 A general-purpose, point-in-time leakage guard for LLM agents.
 
-ChronoGuard lets you run any LLM agent *as if* it were operating at a specific
-past date — and, more importantly, **measures how well that blinding actually
-holds**. It is domain-agnostic and not tied to any single agent framework. The
-primary test target is local models served by [Ollama](https://ollama.com).
+ChronoGuard runs any LLM agent as if it were operating at a specific past date,
+then measures how well that blinding actually holds. It's domain-agnostic and
+isn't tied to any agent framework. The primary test target is local models
+served by [Ollama](https://ollama.com).
 
-## Why two layers?
+## Why two layers
 
-Asking a model to "reason as of 2023-06-01" fails in two independent ways, and
-they need different fixes:
+Asking a model to "reason as of 2023-06-01" fails in two independent ways that
+need different fixes:
 
 | Channel | What happens | Fix |
 | --- | --- | --- |
-| **Tool leakage** | A tool (search, RAG store, API) returns a document published *after* the as-of date. | Solvable. Intercept every tool call and filter results by timestamp. |
-| **Parametric leakage** | The model's weights already encode post-as-of facts, so it answers correctly with *zero* tool access. | Not solvable by filtering. Only measurable — probe for it and report it. |
+| **Tool leakage** | A tool (search, RAG store, API) hands back a document published after the as-of date. | Solvable. Intercept every tool call, filter results by timestamp. |
+| **Parametric leakage** | The weights already encode post-as-of facts, so the model answers correctly with zero tool access. | Not solvable by filtering. You can only measure it and pick a better model. |
 
-A tool that only does the first and calls itself a sandbox is solving the easy
-half. ChronoGuard ships both a filtering layer and a probing/measurement layer.
+Something that does only the first and calls itself a sandbox is solving the
+easy half. ChronoGuard ships both a filtering layer and a measurement layer.
 
-See [DESIGN.md](DESIGN.md) for the full reasoning and [PLAN.md](PLAN.md) for the
-build plan.
+[DESIGN.md](DESIGN.md) has the full reasoning, [PLAN.md](PLAN.md) has the build
+order.
 
 ## Status
 
-Early development. Phase 0 (scaffolding) complete; see [PLAN.md](PLAN.md) for
-what lands next.
+Early. Phase 0 (scaffolding) done. See [PLAN.md](PLAN.md) for what lands next.
 
 ## Install
 
@@ -39,12 +38,14 @@ chronoguard --help
 ## Tests
 
 ```bash
-pytest                     # fast, offline unit tests
-pytest -m integration      # requires a running local Ollama server
+pytest                        # fast offline unit tests
+pytest -m integration         # needs a running local Ollama server
+pytest -m "not integration"   # explicitly skip anything model-backed
 ```
 
-Integration tests skip cleanly with a clear message when Ollama is unreachable.
+Integration tests skip with a clear message when Ollama isn't reachable, they
+don't fail the suite.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
