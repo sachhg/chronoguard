@@ -118,3 +118,56 @@ class TestNativeToolCalling:
         assert run.final_answer.strip()
         assert canaries_in(run.final_answer) == []
         assert canaries_in(run.evidence_text) == []
+
+
+@pytest.fixture(scope="session")
+def live_probe_report(ollama_client: OllamaClient, ollama_model: str) -> Any:
+    """One real probe run, shared by the assertions below."""
+    from chronoguard.probe import LeakageProbe
+
+    return LeakageProbe(ollama_client).run(
+        ollama_model, FIXTURE_AS_OF, max_future_cases=4, max_control_cases=3
+    )
+
+
+class TestLiveLeakageProbe:
+    def test_the_probe_asks_and_scores_every_case(self, live_probe_report: Any) -> None:
+        assert live_probe_report.outcomes
+        assert all(o.response for o in live_probe_report.outcomes)
+
+    def test_both_groups_are_present(self, live_probe_report: Any) -> None:
+        assert live_probe_report.future_outcomes
+        assert live_probe_report.control_outcomes
+
+    def test_scores_are_well_formed(self, live_probe_report: Any) -> None:
+        assert 0.0 <= live_probe_report.leakage_score <= 1.0
+        assert 0.0 <= live_probe_report.control_score <= 1.0
+        assert live_probe_report.risk_level in ("high", "elevated", "low", "inconclusive")
+
+    def test_cutoff_risk_is_assessed(self, live_probe_report: Any) -> None:
+        assert live_probe_report.cutoff_risk.level in ("high", "low", "unknown")
+        assert live_probe_report.cutoff_risk.reason
+
+    def test_the_model_can_answer_something(self, live_probe_report: Any) -> None:
+        # If the controls all fail, a zero leakage score would mean nothing.
+        # This is the assertion that keeps the probe honest.
+        assert live_probe_report.control_score > 0, (
+            "the model failed every control question, so its leakage score is "
+            f"uninterpretable: {live_probe_report.summary()}"
+        )
+
+    def test_the_report_explains_itself(self, live_probe_report: Any) -> None:
+        text = live_probe_report.explain()
+        assert live_probe_report.model in text
+        assert "leakage" in text
+
+    def test_probing_after_every_case_leaves_nothing_to_measure(
+        self, ollama_client: OllamaClient, ollama_model: str
+    ) -> None:
+        from chronoguard.probe import LeakageProbe
+
+        report = LeakageProbe(ollama_client).run(
+            ollama_model, "2035-01-01T00:00:00Z", max_control_cases=1
+        )
+        assert report.future_outcomes == []
+        assert report.risk_level == "inconclusive"

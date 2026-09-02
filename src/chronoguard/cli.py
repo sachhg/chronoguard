@@ -13,6 +13,7 @@ from chronoguard.fixtures import FIXTURE_AS_OF, build_fixture_toolset
 from chronoguard.guard import GuardPolicy, TemporalGuard
 from chronoguard.interception import AuditLog
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
+from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
 
 app = typer.Typer(
     name="chronoguard",
@@ -138,6 +139,89 @@ def run(
     for record in result.evidence:
         stamp = record.published_at.date().isoformat() if record.published_at else "undated"
         typer.echo(f"  {stamp}  {record.source_id}")
+
+
+@app.command()
+def probe(
+    as_of: Annotated[
+        str, typer.Option("--as-of", help="The instant to simulate. Needs a timezone offset.")
+    ] = FIXTURE_AS_OF,
+    model: Annotated[
+        Optional[str], typer.Option(help="Ollama model. Discovered at runtime if unset.")
+    ] = None,
+    cases: Annotated[
+        Optional[str], typer.Option(help="Custom probe case file. Defaults to the packaged set.")
+    ] = None,
+    cutoffs: Annotated[
+        Optional[str], typer.Option(help="Custom model cutoff file.")
+    ] = None,
+    judge: Annotated[
+        Optional[str],
+        typer.Option(help="Model to use as an LLM judge for free-text answers."),
+    ] = None,
+    max_future: Annotated[
+        Optional[int], typer.Option(help="Cap on probe questions asked.")
+    ] = None,
+    max_control: Annotated[
+        Optional[int], typer.Option(help="Cap on control questions asked.")
+    ] = None,
+    host: Annotated[Optional[str], typer.Option(help="Ollama host.")] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
+) -> None:
+    """Measure what a model already knows about the future, with no tools at all.
+
+    This is the half filtering cannot fix. A correct answer here came from the
+    weights, not from anything you handed it.
+    """
+    try:
+        client = OllamaClient(host=host)
+        chosen = model or client.pick_model()
+        report = LeakageProbe(
+            client,
+            cases=load_probe_cases(cases) if cases else None,
+            cutoffs=load_model_cutoffs(cutoffs) if cutoffs else None,
+            judge_model=judge,
+        ).run(chosen, as_of, max_future_cases=max_future, max_control_cases=max_control)
+    except OllamaUnavailable as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        typer.echo("Start one with `ollama serve`.", err=True)
+        raise typer.Exit(code=1) from exc
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    if as_json:
+        payload = report.model_dump(mode="json")
+        payload["leakage_score"] = report.leakage_score
+        payload["control_score"] = report.control_score
+        payload["risk_level"] = report.risk_level
+        typer.echo(json.dumps(payload, indent=2))
+        return
+
+    colour = {
+        "high": typer.colors.RED,
+        "elevated": typer.colors.YELLOW,
+        "inconclusive": typer.colors.YELLOW,
+        "low": typer.colors.GREEN,
+    }[report.risk_level]
+    typer.secho(report.summary(), fg=colour, bold=True)
+    typer.echo(f"\n{report.cutoff_risk.reason}")
+
+    typer.echo("\nasked with no tools:")
+    for item in report.outcomes:
+        mark = "LEAK" if item.revealed and item.kind == "future" else ("ok  " if item.revealed else "  . ")
+        typer.echo(f"  {mark} [{item.kind:<7}] {item.case_id:<22} {item.response[:56]!r}")
+
+    if report.leaked:
+        typer.echo("\nthe model produced these with zero evidence in context:")
+        for item in report.leaked:
+            typer.echo(f"  {item.case_id}: expected {item.expected!r} (matched by {item.method})")
+
+    if report.risk_level == "inconclusive" and report.future_outcomes:
+        typer.echo(
+            "\nIt also failed most controls, so a low leakage score here means it "
+            "can't answer, not that it's blinded."
+        )
 
 
 def main() -> None:

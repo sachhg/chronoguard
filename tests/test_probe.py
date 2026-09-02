@@ -420,11 +420,22 @@ class TestLeakageProbeRun:
         result = LeakageProbe(CannedProbeClient(), cases=cases, cutoffs=cutoffs).run("gemma3:4b", AS_OF)
         assert result.cutoff_risk.level == "high"
 
-    def test_case_limits_keep_the_newest_cases(self, cases: list[ProbeCase]) -> None:
+    def test_capping_keeps_the_future_cases_nearest_the_as_of_date(
+        self, cases: list[ProbeCase]
+    ) -> None:
+        # Cases just after as_of are the ones likely to be inside the model's
+        # training window, so a capped run has to ask those. Capping to the
+        # far-future cases instead would report a reassuring zero.
         result = LeakageProbe(CannedProbeClient(), cases=cases, cutoffs=ModelCutoffs()).run(
             "m", AS_OF, max_future_cases=1, max_control_cases=0
         )
-        assert [o.case_id for o in result.outcomes] == ["future-2"]
+        assert [o.case_id for o in result.outcomes] == ["future-1"]
+
+    def test_a_zero_control_cap_asks_no_control_questions(self, cases: list[ProbeCase]) -> None:
+        result = LeakageProbe(CannedProbeClient(), cases=cases, cutoffs=ModelCutoffs()).run(
+            "m", AS_OF, max_control_cases=0
+        )
+        assert result.control_outcomes == []
 
     def test_the_judge_is_used_when_configured(self, cases: list[ProbeCase]) -> None:
         client = CannedProbeClient({"Who won?": "the Labour leader"}, judge_reply="YES")

@@ -489,10 +489,20 @@ class LeakageProbe:
     def _select(
         self, as_of: datetime, max_future: int | None, max_control: int | None
     ) -> list[ProbeCase]:
-        """Newest future cases and newest controls, so limits keep the hardest ones."""
-        ordered = sorted(self.cases, key=lambda c: c.knowable_from, reverse=True)
-        future = [c for c in ordered if c.kind_for(as_of) == "future"]
-        control = [c for c in ordered if c.kind_for(as_of) == "control"]
+        """Order the cases so that capping a run keeps the informative ones.
+
+        Future cases run nearest-to-as_of first. Those are the ones most likely
+        to sit inside the model's training window, so they're where leakage
+        actually shows up. Ordering the other way round makes a capped run ask
+        only about things past every plausible cutoff and report a reassuring
+        zero, which is exactly the wrong answer.
+
+        Controls run most-recent-first, because a control the model barely
+        predates is a more demanding check than one from 1969.
+        """
+        by_date = sorted(self.cases, key=lambda c: c.knowable_from)
+        future = [c for c in by_date if c.kind_for(as_of) == "future"]
+        control = [c for c in reversed(by_date) if c.kind_for(as_of) == "control"]
         return (future if max_future is None else future[:max_future]) + (
             control if max_control is None else control[:max_control]
         )

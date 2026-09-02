@@ -12,7 +12,7 @@ from chronoguard import cli
 from chronoguard.cli import app
 from chronoguard.fixtures import POST_AS_OF_CANARIES
 from chronoguard.ollama import ModelInfo, OllamaUnavailable
-from helpers import ScriptedClient, action, answer
+from helpers import CannedProbeClient, ScriptedClient, action, answer
 
 runner = CliRunner()
 
@@ -138,3 +138,72 @@ class TestRunCommand:
         result = runner.invoke(app, ["run", "task", "--policy", "warn"])
         assert result.exit_code == 0
         assert "policy: warn" in result.output
+
+
+class TestProbeCommand:
+    def _wire(self, monkeypatch: pytest.MonkeyPatch, answers: dict[str, str]) -> None:
+        client = CannedProbeClient(answers)
+        client.pick_model = lambda **kw: "scripted-model"  # type: ignore[method-assign]
+        monkeypatch.setattr(cli, "OllamaClient", lambda **kw: client)
+
+    def test_reports_leakage_and_names_the_cases(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch, {"Nobel Peace Prize": "Narges Mohammadi"})
+        result = runner.invoke(app, ["probe", "--max-future", "3", "--max-control", "2"])
+
+        assert result.exit_code == 0, result.output
+        assert "leakage" in result.output
+        assert "nobel-peace-2023" in result.output
+        assert "zero evidence in context" in result.output
+
+    def test_cutoff_risk_is_explained_before_the_scores(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch, {})
+        result = runner.invoke(app, ["probe", "--model", "gemma3:4b", "--max-future", "1", "--max-control", "1"])
+        assert "trained on data up to" in result.output
+        assert "Filtering cannot undo that" in result.output
+
+    def test_json_output_carries_the_scores(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch, {"Nobel Peace Prize": "Narges Mohammadi"})
+        result = runner.invoke(
+            app, ["probe", "--json", "--max-future", "3", "--max-control", "2"]
+        )
+        payload = json.loads(result.output)
+        assert payload["risk_level"] in ("high", "elevated", "low", "inconclusive")
+        assert 0.0 <= payload["leakage_score"] <= 1.0
+        assert payload["cutoff_risk"]["level"] in ("high", "low", "unknown")
+        assert payload["outcomes"]
+
+    def test_a_naive_as_of_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch, {})
+        result = runner.invoke(app, ["probe", "--as-of", "2023-06-01"])
+        assert result.exit_code == 2
+        assert "explicit offset" in result.output
+
+    def test_unreachable_server_exits_nonzero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def boom(**kw: object) -> None:
+            raise OllamaUnavailable("connection refused")
+
+        monkeypatch.setattr(cli, "OllamaClient", boom)
+        result = runner.invoke(app, ["probe"])
+        assert result.exit_code == 1
+        assert "ollama serve" in result.output
+
+    def test_a_custom_case_file_is_used(self, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+        path = tmp_path / "cases.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "id": "only-mine",
+                            "question": "Who won?",
+                            "answer": "Nobody",
+                            "knowable_from": "2024-01-01T00:00:00Z",
+                        }
+                    ]
+                }
+            )
+        )
+        self._wire(monkeypatch, {})
+        result = runner.invoke(app, ["probe", "--cases", str(path)])
+        assert "only-mine" in result.output
+        assert "nobel-peace-2023" not in result.output
