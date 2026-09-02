@@ -171,3 +171,78 @@ class TestLiveLeakageProbe:
         )
         assert report.future_outcomes == []
         assert report.risk_level == "inconclusive"
+
+
+@pytest.fixture(scope="session")
+def live_claim_report(ollama_client: OllamaClient, ollama_model: str) -> Any:
+    """One real classification of the synthetic answer, labels known in advance."""
+    from chronoguard.claims import ClaimClassifier
+
+    from claim_fixtures import ANSWER, EVIDENCE
+
+    return ClaimClassifier(ollama_client, ollama_model).classify(ANSWER, EVIDENCE)
+
+
+class TestLiveClaimClassification:
+    """Measures a real judge model against fixtures whose labels are known.
+
+    Judge quality varies by model, so the aggregate bar is deliberately loose
+    while the two unambiguous leaks are required to be caught. Missing those
+    would mean the classifier is not doing its job at all.
+    """
+
+    def test_the_answer_is_decomposed_into_several_claims(self, live_claim_report: Any) -> None:
+        assert len(live_claim_report.claims) >= 3
+
+    def test_every_claim_gets_a_label(self, live_claim_report: Any) -> None:
+        from chronoguard.claims import ClaimLabel
+
+        unlabelled = [c for c in live_claim_report.claims if c.label is ClaimLabel.UNCLASSIFIED]
+        assert not unlabelled, f"judge produced unusable verdicts: {[c.raw_verdict for c in unlabelled]}"
+
+    def test_the_obvious_leaks_are_caught(self, live_claim_report: Any) -> None:
+        leaked = " ".join(c.text for c in live_claim_report.leaks)
+        assert "October 14" in leaked or "$4,900" in leaked, (
+            f"missed the invented ship date and price: {live_claim_report.summary()}"
+        )
+        assert "Ferrous Labs" in leaked, (
+            f"missed the invented acquisition: {live_claim_report.summary()}"
+        )
+
+    def test_no_grounded_claim_carries_a_post_as_of_fact(self, live_claim_report: Any) -> None:
+        # Labelling an invented fact "grounded" would be the worst failure here,
+        # since it launders a leak as evidence-backed.
+        for item in live_claim_report.grounded:
+            assert canaries_in(item.text) == [], f"laundered a leak as grounded: {item.text}"
+
+    def test_grounded_claims_cite_the_evidence_they_came_from(self, live_claim_report: Any) -> None:
+        assert any(c.evidence_ids for c in live_claim_report.grounded)
+
+    def test_labels_broadly_agree_with_the_known_answers(self, live_claim_report: Any) -> None:
+        from claim_fixtures import EXPECTED
+
+        graded = [
+            (c.text, c.label, EXPECTED[c.text]) for c in live_claim_report.claims if c.text in EXPECTED
+        ]
+        assert len(graded) >= 4, "decomposition drifted too far from the fixture wording to grade"
+        correct = sum(1 for _, got, want in graded if got is want)
+        assert correct / len(graded) >= 0.66, (
+            f"judge agreed on {correct}/{len(graded)}: "
+            + "; ".join(f"{t[:40]!r} got {g.value} want {w.value}" for t, g, w in graded if g is not w)
+        )
+
+
+class TestLiveEndToEnd:
+    """Agent run, then claim classification on what it produced."""
+
+    def test_a_guarded_run_produces_no_leaked_claims(
+        self, ollama_client: OllamaClient, live_run: AgentRun
+    ) -> None:
+        from chronoguard.claims import classify_run
+
+        report = classify_run(run=live_run, client=ollama_client, max_claims=6)
+        leaked_text = " ".join(c.text for c in report.leaks)
+        assert canaries_in(leaked_text) == [], (
+            "the agent asserted a post-as-of fact it was never given: " + report.explain()
+        )
+        assert canaries_in(report.answer) == []
