@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chronoguard"
+version = "0.1.0"
+description = "Point-in-time leakage guard for LLM agents: filter tool results by publication date, and measure what the model already knew."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sachit Madaan", email = "sachhg21@gmail.com" }]
+keywords = ["llm", "agents", "evaluation", "data-leakage", "backtesting", "temporal"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "pydantic>=2.6",
+  "typer>=0.12",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/sachhg/chronoguard"
+
+[project.scripts]
+chronoguard = "chronoguard.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chronoguard"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "integration: talks to a real local Ollama server; skipped when unreachable (deselect with -m 'not integration')",
+]
