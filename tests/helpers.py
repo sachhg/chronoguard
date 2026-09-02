@@ -88,3 +88,59 @@ class CannedProbeClient:
             if needle.lower() in content.lower():
                 return ChatResponse.model_validate({"message": {"role": "assistant", "content": reply}})
         return ChatResponse.model_validate({"message": {"role": "assistant", "content": self.default}})
+
+
+class ScriptedJudgeClient:
+    """Stands in for the judge model in claim classification.
+
+    Decomposition returns `claims` joined by newlines. Classification returns
+    the first verdict whose key appears in the claim being judged, else
+    `default_verdict`.
+    """
+
+    def __init__(
+        self,
+        claims: list[str] | None = None,
+        verdicts: dict[str, str] | None = None,
+        *,
+        default_verdict: str = "UNSUPPORTED | - | not in the documents",
+        decompose_reply: str | None = None,
+    ) -> None:
+        self.claims = claims or []
+        self.verdicts = verdicts or {}
+        self.default_verdict = default_verdict
+        self.decompose_reply = decompose_reply
+        self.prompts: list[str] = []
+
+    def pick_model(self, *, prefer_tools: bool = False) -> str:
+        return "scripted-judge"
+
+    @property
+    def classify_prompts(self) -> list[str]:
+        return [p for p in self.prompts if "Work through these in order" in p]
+
+    def chat(self, model: str, messages: Any, *, tools: Any = None, **kwargs: Any) -> ChatResponse:
+        content = messages[-1]["content"] if isinstance(messages[-1], dict) else messages[-1].content
+        self.prompts.append(content)
+
+        if "Break the following answer into its atomic claims" in content:
+            reply = self.decompose_reply if self.decompose_reply is not None else "\n".join(self.claims)
+            return ChatResponse.model_validate({"message": {"role": "assistant", "content": reply}})
+
+        # Match against the claim under judgement only. The prompt also carries
+        # the evidence and few-shot examples, so matching the whole thing would
+        # fire on the examples' wording.
+        claim = self._claim_in(content)
+        for needle, verdict in self.verdicts.items():
+            if needle.lower() in claim.lower():
+                return ChatResponse.model_validate({"message": {"role": "assistant", "content": verdict}})
+        return ChatResponse.model_validate(
+            {"message": {"role": "assistant", "content": self.default_verdict}}
+        )
+
+    @staticmethod
+    def _claim_in(prompt: str) -> str:
+        for line in prompt.splitlines():
+            if line.startswith("Claim: "):
+                return line[len("Claim: ") :]
+        return prompt
