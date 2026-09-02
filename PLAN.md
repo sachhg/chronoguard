@@ -14,7 +14,7 @@ Conventions used throughout:
 
 ---
 
-## Phase 0: scaffolding
+## Phase 0: scaffolding (done)
 
 - `pyproject.toml` (Python 3.11+, src layout, hatchling), `.gitignore`, MIT
   `LICENSE`, `README.md` skeleton.
@@ -25,7 +25,7 @@ Conventions used throughout:
   script and runnable via `python -m chronoguard`.
 - `pytest` runs green; `pip install -e ".[dev]"` succeeds.
 
-## Phase 1: core temporal filter primitive
+## Phase 1: core temporal filter primitive (done)
 
 Modules: `chronoguard/evidence.py`, `chronoguard/guard.py`
 
@@ -42,7 +42,7 @@ Modules: `chronoguard/evidence.py`, `chronoguard/guard.py`
 - Unit tests: boundary-exact, missing timestamp, unparseable timestamp, mixed
   timezones, empty input, all-violating input.
 
-## Phase 2: tool-call interception middleware
+## Phase 2: tool-call interception middleware (done)
 
 Modules: `chronoguard/interception.py`, `chronoguard/fixtures/`
 
@@ -57,7 +57,7 @@ Modules: `chronoguard/interception.py`, `chronoguard/fixtures/`
 - Tests: agent-facing output never contains post-as-of content; the count of
   filtered records is retrievable for reporting.
 
-## Phase 3: Ollama agent runner
+## Phase 3: Ollama agent runner (done)
 
 Modules: `chronoguard/ollama.py`, `chronoguard/agent.py`
 

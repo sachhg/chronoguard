@@ -32,6 +32,7 @@ Wrap a tool so the agent can only ever see the survivors::
 """
 
 from chronoguard.evidence import EvidenceRecord, parse_timestamp
+from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.guard import (
     FilterResult,
     GuardPolicy,
@@ -40,6 +41,7 @@ from chronoguard.guard import (
     Verdict,
     guard_records,
 )
+from chronoguard.agent import AgentConfig, AgentRun, AgentRunner, run_agent
 from chronoguard.interception import (
     AuditLog,
     EvidenceAdapter,
@@ -54,6 +56,9 @@ from chronoguard.interception import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "AgentConfig",
+    "AgentRun",
+    "AgentRunner",
     "AuditLog",
     "EvidenceAdapter",
     "EvidenceRecord",
@@ -62,6 +67,8 @@ __all__ = [
     "GuardedTool",
     "Judgement",
     "MappingAdapter",
+    "OllamaClient",
+    "OllamaUnavailable",
     "RecordAdapter",
     "TemporalGuard",
     "ToolCall",
@@ -71,4 +78,5 @@ __all__ = [
     "guard_tool",
     "guarded_tool",
     "parse_timestamp",
+    "run_agent",
 ]

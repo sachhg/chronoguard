@@ -25,8 +25,38 @@ order.
 
 ## Status
 
-Early. Phases 0 to 2 are done: the temporal filter, tool-call interception, and
-deterministic fixture tools. See [PLAN.md](PLAN.md) for what lands next.
+Early. Phases 0 to 3 are done: the temporal filter, tool-call interception,
+fixture tools, and an agent runner for local Ollama models. See
+[PLAN.md](PLAN.md) for what lands next.
+
+## Quickstart
+
+```bash
+ollama serve &                # if it isn't already running
+chronoguard models            # what's installed, and can it call tools natively
+chronoguard run "When will Halden ship Meridian, and what will it cost per seat?"
+```
+
+That runs an agent against the packaged fixture corpora, guarded at
+2023-06-01. The corpus knows the real answer (October 14, $4,900 per seat) but
+only in documents published after the cutoff, so a working setup gives you the
+answer that was actually knowable at the time:
+
+```
+model      gemma3:4b [react]
+as of      2023-06-01T00:00:00+00:00 (policy: strict)
+tool calls 2
+           web_search({"query": "Halden Meridian ship date cost per seat"}) kept 5, filtered 5
+           document_store({"query": "Halden Meridian ship date cost per seat"}) kept 2, filtered 3
+evidence   7 record(s) reached the agent
+filtered   8 record(s) withheld
+verdicts   {'allowed': 7, 'future': 5, 'undated': 2, 'unparseable': 1}
+
+answer:
+As of June 1st, 2023, Halden has confirmed a summer launch window for Meridian
+but has not yet announced a specific ship date or price per seat. Analysts
+estimate the cost to be between $2,400 and $2,900 per seat...
+```
 
 ## Layer 1: filtering evidence
 
@@ -148,6 +178,50 @@ only, a document sitting exactly on the boundary instant, and undated documents
 that deliberately hold future facts. `POST_AS_OF_CANARIES` lists the strings
 that should never reach an agent, so tests can just grep for them.
 
+## Running an agent
+
+```python
+from chronoguard import AuditLog, TemporalGuard
+from chronoguard.agent import AgentConfig, run_agent
+from chronoguard.fixtures import build_fixture_toolset
+
+guard = TemporalGuard("2023-06-01T00:00:00Z")
+tools = build_fixture_toolset(guard, AuditLog())
+
+run = run_agent(AgentConfig(
+    task="When will Meridian ship and what will it cost per seat?",
+    as_of="2023-06-01T00:00:00Z",
+    model=None,        # discovered from /api/tags if unset
+    mode="auto",       # native tool calls if the model supports them, else react
+    max_steps=6,
+), tools)
+
+run.final_answer
+run.evidence               # exactly what the agent was shown
+run.audit.filtered_count   # what it wasn't
+run.summary()
+```
+
+Models are discovered at runtime through the Ollama API. Nothing here hardcodes
+a model name. `mode="auto"` reads the model's `capabilities` from `/api/show`
+and picks native tool calling when it's there, otherwise a text protocol where
+the model replies with one JSON object per turn. Small models wrap that JSON in
+code fences and prose, so the parser scans for a balanced object and nudges the
+model a couple of times before giving up.
+
+Two things the runner does on purpose:
+
+- **The prompt is not the containment.** The "you are operating as of X" line
+  keeps the model on task. The guard in front of the tools is what actually
+  stops the future getting in. Prompts are a request, the filter is a wall.
+- **The agent is never told what got filtered.** Saying "4 documents were
+  withheld for postdating your cutoff" is itself a hint that the future exists
+  and has something interesting in it. Those counts go to the report, not the
+  model.
+
+It also refuses to start if a tool's guard disagrees with the run's `as_of`,
+which is otherwise a silent footgun: prompt says one date, filter uses another.
+
 ## Install
 
 ```bash
@@ -159,13 +233,19 @@ chronoguard --help
 ## Tests
 
 ```bash
-pytest                        # fast offline unit tests
+pytest                        # everything, model-backed tests skip if Ollama is down
+pytest -m "not integration"   # fast offline only
 pytest -m integration         # needs a running local Ollama server
-pytest -m "not integration"   # explicitly skip anything model-backed
 ```
 
-Integration tests skip with a clear message when Ollama isn't reachable, they
-don't fail the suite.
+Integration tests skip with a clear message when Ollama isn't reachable or when
+no installed model supports the feature under test. They never fail the suite
+for a missing server.
+
+The integration suite runs a real agent loop and asserts no post-as-of fixture
+content reaches the answer or the cited sources. It also asserts the model
+actually called a tool and that the filter actually dropped something, so the
+test can't pass because nothing happened.
 
 ## License
 
