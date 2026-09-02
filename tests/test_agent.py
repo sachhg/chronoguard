@@ -22,54 +22,9 @@ from chronoguard.evidence import EvidenceRecord
 from chronoguard.guard import TemporalGuard
 from chronoguard.fixtures import FIXTURE_AS_OF, POST_AS_OF_CANARIES, build_fixture_toolset
 from chronoguard.interception import AuditLog
-from chronoguard.ollama import ChatResponse
+from helpers import ScriptedClient, action, answer, call, text
 
 TASK = "When will Meridian ship and what will it cost?"
-
-
-class ScriptedClient:
-    """Replays a queue of canned replies and records what it was sent."""
-
-    def __init__(self, replies: list[dict[str, Any]], *, tools: bool = False) -> None:
-        self.replies = list(replies)
-        self.tools = tools
-        self.requests: list[dict[str, Any]] = []
-
-    def supports_tools(self, model: str) -> bool:
-        return self.tools
-
-    def pick_model(self, *, prefer_tools: bool = False) -> str:
-        return "scripted-model"
-
-    def chat(self, model: str, messages: Any, *, tools: Any = None, **kwargs: Any) -> ChatResponse:
-        self.requests.append({"model": model, "messages": list(messages), "tools": tools})
-        if not self.replies:
-            return ChatResponse.model_validate({"message": {"role": "assistant", "content": "done"}})
-        return ChatResponse.model_validate({"message": self.replies.pop(0)})
-
-
-def text(content: str) -> dict[str, Any]:
-    return {"role": "assistant", "content": content}
-
-
-def call(name: str, **arguments: Any) -> dict[str, Any]:
-    return {
-        "role": "assistant",
-        "content": "",
-        "tool_calls": [{"function": {"name": name, "arguments": arguments}}],
-    }
-
-
-def action(name: str, **arguments: Any) -> dict[str, Any]:
-    import json
-
-    return text(json.dumps({"tool": name, "arguments": arguments}))
-
-
-def answer(value: str) -> dict[str, Any]:
-    import json
-
-    return text(json.dumps({"answer": value}))
 
 
 @pytest.fixture
