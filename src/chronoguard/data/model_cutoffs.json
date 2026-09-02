@@ -1,0 +1,24 @@
+{
+  "note": "Approximate training cutoffs, keyed by model family. Edit freely, add your own. These are a prior, not evidence: vendors are vague, post-training on recent data blurs the line, and models are frequently wrong about their own cutoff in both directions. The probe is the evidence. This file only decides whether a run gets flagged as high risk before scoring starts.",
+  "matching": "A model name is reduced to its family by dropping any registry prefix and the :tag, then matched exactly, then by longest key prefix. So 'library/llama3.2:3b-instruct-q4_0' matches 'llama3.2'.",
+  "cutoffs": {
+    "gemma": "2024-02-01",
+    "gemma2": "2024-06-01",
+    "gemma3": "2024-08-01",
+    "llama2": "2022-09-01",
+    "llama3": "2023-03-01",
+    "llama3.1": "2023-12-01",
+    "llama3.2": "2023-12-01",
+    "llama3.3": "2023-12-01",
+    "mistral": "2023-09-01",
+    "mixtral": "2023-09-01",
+    "phi3": "2023-10-01",
+    "phi4": "2024-06-01",
+    "qwen2": "2024-02-01",
+    "qwen2.5": "2024-09-01",
+    "qwen3": "2024-12-01",
+    "deepseek-r1": "2024-07-01",
+    "granite3": "2024-04-01",
+    "smollm2": "2024-06-01"
+  }
+}

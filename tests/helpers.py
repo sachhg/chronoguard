@@ -55,3 +55,36 @@ def action(name: str, **arguments: Any) -> dict[str, Any]:
 def answer(value: str) -> dict[str, Any]:
     """A ReAct final answer reply."""
     return text(json.dumps({"answer": value}))
+
+
+class CannedProbeClient:
+    """Stands in for OllamaClient in probe runs.
+
+    Answers are keyed by a substring of the question. Anything unmatched gets
+    `default`. Judge prompts are recognised by their instruction line and
+    answered from `judge_replies`.
+    """
+
+    def __init__(
+        self,
+        answers: dict[str, str] | None = None,
+        *,
+        default: str = "I DO NOT KNOW",
+        judge_reply: str = "NO",
+    ) -> None:
+        self.answers = answers or {}
+        self.default = default
+        self.judge_reply = judge_reply
+        self.asked: list[str] = []
+        self.judged: list[str] = []
+
+    def chat(self, model: str, messages: Any, *, tools: Any = None, **kwargs: Any) -> ChatResponse:
+        content = messages[-1]["content"] if isinstance(messages[-1], dict) else messages[-1].content
+        if "Reply with exactly one word" in content:
+            self.judged.append(content)
+            return ChatResponse.model_validate({"message": {"role": "assistant", "content": self.judge_reply}})
+        self.asked.append(content)
+        for needle, reply in self.answers.items():
+            if needle.lower() in content.lower():
+                return ChatResponse.model_validate({"message": {"role": "assistant", "content": reply}})
+        return ChatResponse.model_validate({"message": {"role": "assistant", "content": self.default}})
