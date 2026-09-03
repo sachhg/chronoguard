@@ -24,7 +24,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from chronoguard import __version__
+from chronoguard._version import __version__
 from chronoguard.agent import AgentConfig, AgentRun, run_agent
 from chronoguard.claims import ClaimReport, classify_run
 from chronoguard.guard import GuardPolicy, TemporalGuard

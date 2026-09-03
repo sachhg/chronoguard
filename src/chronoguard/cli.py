@@ -9,7 +9,7 @@ from typing import Annotated, Optional
 import typer
 from pydantic import ValidationError
 
-from chronoguard import __version__
+from chronoguard._version import __version__
 from chronoguard.agent import AgentConfig, run_agent
 from chronoguard.fixtures import FIXTURE_AS_OF, build_fixture_toolset
 from chronoguard.guard import GuardPolicy, TemporalGuard

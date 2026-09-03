@@ -31,6 +31,8 @@ Wrap a tool so the agent can only ever see the survivors::
         ...
 """
 
+from chronoguard._version import __version__
+from chronoguard.agent import AgentConfig, AgentRun, AgentRunner, run_agent
 from chronoguard.claims import (
     Claim,
     ClaimClassifier,
@@ -39,16 +41,6 @@ from chronoguard.claims import (
     classify_run,
 )
 from chronoguard.evidence import EvidenceRecord, parse_timestamp
-from chronoguard.ollama import OllamaClient, OllamaUnavailable
-from chronoguard.probe import (
-    CutoffRisk,
-    LeakageProbe,
-    ModelCutoffs,
-    ProbeCase,
-    ProbeReport,
-    load_model_cutoffs,
-    load_probe_cases,
-)
 from chronoguard.guard import (
     FilterResult,
     GuardPolicy,
@@ -57,7 +49,6 @@ from chronoguard.guard import (
     Verdict,
     guard_records,
 )
-from chronoguard.agent import AgentConfig, AgentRun, AgentRunner, run_agent
 from chronoguard.interception import (
     AuditLog,
     EvidenceAdapter,
@@ -68,8 +59,17 @@ from chronoguard.interception import (
     guard_tool,
     guarded_tool,
 )
-
-__version__ = "0.1.0"
+from chronoguard.ollama import OllamaClient, OllamaUnavailable
+from chronoguard.probe import (
+    CutoffRisk,
+    LeakageProbe,
+    ModelCutoffs,
+    ProbeCase,
+    ProbeReport,
+    load_model_cutoffs,
+    load_probe_cases,
+)
+from chronoguard.report import ScenarioConfig, ScenarioReport, run_scenario
 
 __all__ = [
     "AgentConfig",
@@ -95,6 +95,8 @@ __all__ = [
     "ProbeCase",
     "ProbeReport",
     "RecordAdapter",
+    "ScenarioConfig",
+    "ScenarioReport",
     "TemporalGuard",
     "ToolCall",
     "Verdict",
@@ -107,4 +109,5 @@ __all__ = [
     "load_probe_cases",
     "parse_timestamp",
     "run_agent",
+    "run_scenario",
 ]
