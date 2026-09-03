@@ -14,6 +14,7 @@ remember.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -246,3 +247,68 @@ class TestLiveEndToEnd:
             "the agent asserted a post-as-of fact it was never given: " + report.explain()
         )
         assert canaries_in(report.answer) == []
+
+
+@pytest.fixture(scope="session")
+def live_report(ollama_client: OllamaClient, ollama_model: str) -> Any:
+    """One real end-to-end scenario, shared by the assertions below."""
+    from chronoguard.report import ScenarioConfig, run_scenario
+
+    return run_scenario(
+        ScenarioConfig(
+            task=TASK,
+            as_of=FIXTURE_AS_OF,
+            model=ollama_model,
+            max_steps=4,
+            max_claims=5,
+            max_future_cases=3,
+            max_control_cases=2,
+        ),
+        client=ollama_client,
+    )
+
+
+class TestLiveScenarioReport:
+    """The whole pipeline against a real model, both output shapes."""
+
+    def test_all_three_stages_produced_output(self, live_report: Any) -> None:
+        assert live_report.agent.final_answer.strip()
+        assert live_report.probe is not None and live_report.probe.outcomes
+        assert live_report.claims is not None and live_report.claims.claims
+
+    def test_the_text_report_has_every_section(self, live_report: Any) -> None:
+        text = live_report.render()
+        for heading in (
+            "RISK:",
+            "TOOL LEAKAGE",
+            "PARAMETRIC LEAKAGE",
+            "CLAIMS IN THE ANSWER",
+            "ANSWER",
+            "EVIDENCE THE AGENT RECEIVED",
+        ):
+            assert heading in text, f"missing {heading}"
+
+    def test_the_json_summary_carries_the_three_required_numbers(self, live_report: Any) -> None:
+        payload = live_report.summary()
+        assert payload["tool_leakage"]["records_filtered"] > 0
+        assert 0.0 <= payload["parametric_leakage"]["leakage_score"] <= 1.0
+        assert isinstance(payload["claims"]["flagged"], list)
+        assert json.loads(json.dumps(payload))
+
+    def test_neither_output_carries_post_as_of_content(self, live_report: Any) -> None:
+        assert canaries_in(live_report.render()) == []
+        assert canaries_in(json.dumps(live_report.summary())) == []
+
+    def test_the_headline_explains_itself(self, live_report: Any) -> None:
+        assert live_report.headline_risk in ("high", "elevated", "low", "unknown")
+        assert live_report.headline_reasons
+
+    def test_a_model_that_reads_past_the_as_of_date_is_never_called_clean(
+        self, live_report: Any
+    ) -> None:
+        # The honesty check. If the probe or the cutoff table says the model
+        # knows the period, the report must not report a clean bill of health
+        # just because the filter did its job.
+        probe = live_report.probe
+        if probe.cutoff_risk.level == "high" or probe.leaked:
+            assert live_report.headline_risk != "low", live_report.render()
