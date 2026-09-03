@@ -57,30 +57,33 @@ probes the model for what it already knows, classifies the answer's claims, and
 prints a verdict:
 
 ```
-RISK: HIGH
-  - with no tools at all the model reproduced 75% of the post-as-of facts it was asked about
+RISK: ELEVATED
+  - the model reproduced 2 post-as-of fact(s) with no evidence in context
   - the model's training data runs past the simulated date (2024-08-01), so filtering cannot blind it
 
 TOOL LEAKAGE (contained by filtering)
   2 tool call(s), 15 record(s) retrieved
   kept 7, filtered 8  (allowed=7, future=5, undated=2, unparseable=1)
+    web_search          10 seen,   5 kept,   5 filtered
+    document_store       5 seen,   2 kept,   3 filtered
 
 PARAMETRIC LEAKAGE (measured, not contained)
-  leakage 3/4 (75%), control 3/3 (100%), risk high
+  leakage 2/8 (25%), control 6/6 (100%), risk elevated
+  cutoff risk: high
   produced with zero evidence in context:
     vision-pro-price       expected '$3,499'
     nobel-peace-2023       expected 'Narges Mohammadi'
-    openai-ouster          expected 'Sam Altman'
 
 CLAIMS IN THE ANSWER
   6 claim(s): 5 grounded, 1 benign, 0 suspected leak(s), groundedness 100%
 ```
 
 Read that carefully, because it's the case the project exists for. The filter
-worked. The answer is clean: every factual claim traces back to evidence,
-nothing leaked into the output. And the run is still high risk, because the same
-model asked directly with no documents at all hands over three facts from after
-the as-of date.
+worked: 8 of 15 retrieved records withheld. The answer is clean: every factual
+claim traces back to evidence, nothing leaked into the output. And the run still
+isn't `low`, because the same model asked directly with no documents at all
+hands over two facts from after the as-of date, and its training runs a year
+past the moment being simulated.
 
 A tool that printed only the first and third sections would call this run fine.
 It wasn't fine, it was lucky.

@@ -302,14 +302,24 @@ A couple of notes:
 - **`groundedness` excludes benign claims.** An answer that's mostly hedging
   isn't well grounded, it just isn't asserting much, so hedges stay out of the
   denominator.
-- **Judge quality depends on the judge model.** `tests/claim_fixtures.py` holds
-  answer-plus-evidence fixtures with known correct labels, and the integration
-  suite grades a real model against them. `gemma3:4b` scores 6/6 on those, and
-  10/11 on a wider set that adds negations and absence claims, with no false
-  leaks and no missed leaks. Negation is where it is weakest: a claim like "the
-  documents do not give a price" is occasionally filed as a leak when it asserts
-  nothing. Check your own judge model against the fixtures before trusting the
-  labels, and see `docs/kb/tune-a-judge-prompt.md` for how.
+- **Judge quality depends on the judge model, and bigger is not better.**
+  `tests/claim_fixtures.py` holds answer-plus-evidence fixtures with known
+  correct labels. Measured on eleven of them:
+
+  | Judge | Correct | False leaks | Missed leaks | Slowest call |
+  | --- | --- | --- | --- | --- |
+  | `gemma3:4b` | 10/11 | 0 | 0 | seconds |
+  | `qwen3:4b` | 8/11 | 1 | 1 | 165s |
+
+  The reasoning model is worse and about a hundred times slower. It labelled the
+  invented claim "Meridian will ship on October 14 at $4,900 per seat" as
+  **grounded**, laundering a leak as evidence-backed. Classification is
+  mechanical, so pick something fast: `--judge gemma3:4b`.
+
+  Negation is the weak spot for both. A claim like "the documents do not give a
+  price" asserts nothing and is occasionally filed as a leak. Check your own
+  judge against the fixtures before trusting the labels, and see
+  `docs/kb/tune-a-judge-prompt.md` for how.
 
 ## Putting it together
 
@@ -321,8 +331,8 @@ chronoguard report "When will Halden ship Meridian, and what will it cost per se
 ```
 
 ```
-RISK: HIGH
-  - with no tools at all the model reproduced 75% of the post-as-of facts it was asked about
+RISK: ELEVATED
+  - the model reproduced 2 post-as-of fact(s) with no evidence in context
   - the model's training data runs past the simulated date (2024-08-01), so filtering cannot blind it
 
 TOOL LEAKAGE (contained by filtering)
@@ -332,22 +342,22 @@ TOOL LEAKAGE (contained by filtering)
     document_store       5 seen,   2 kept,   3 filtered
 
 PARAMETRIC LEAKAGE (measured, not contained)
-  leakage 3/4 (75%), control 3/3 (100%), risk high
+  leakage 2/8 (25%), control 6/6 (100%), risk elevated
   cutoff risk: high
   produced with zero evidence in context:
     vision-pro-price       expected '$3,499'
     nobel-peace-2023       expected 'Narges Mohammadi'
-    openai-ouster          expected 'Sam Altman'
 
 CLAIMS IN THE ANSWER
   6 claim(s): 5 grounded, 1 benign, 0 suspected leak(s), groundedness 100%
 ```
 
 Read that carefully, because it's the case the whole project is built around.
-The filter worked. The answer is clean: every factual claim traces back to
-evidence, nothing leaked into the output. And the run is still **high risk**,
-because the same model, asked directly with no documents at all, hands over
-three facts from after the as-of date.
+The filter worked: 8 of 15 retrieved records withheld. The answer is clean:
+every factual claim traces back to evidence, nothing leaked into the output. And
+the run still isn't `low`, because the same model asked directly with no
+documents at all hands over two facts from after the as-of date, and its
+training runs a year past the moment being simulated.
 
 A tool that only reported the first two sections would tell you this run was
 fine. It wasn't fine. It was lucky.

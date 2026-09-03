@@ -25,8 +25,8 @@ The worst signal wins, and every verdict carries its reasons.
 ## The case that catches people out
 
 ```
-RISK: HIGH
-  - with no tools at all the model reproduced 75% of the post-as-of facts it was asked about
+RISK: ELEVATED
+  - the model reproduced 2 post-as-of fact(s) with no evidence in context
   - the model's training data runs past the simulated date (2024-08-01)
 
 TOOL LEAKAGE (contained by filtering)
@@ -37,12 +37,13 @@ CLAIMS IN THE ANSWER
 ```
 
 Every containment number is good. Zero leaked claims, perfect groundedness. And
-the run is still high risk.
+the run still isn't `low`.
 
 The reason is the middle section. That model, asked directly with no documents
-at all, hands over three facts from after the as-of date. This particular answer
-happened not to use them. The next one might. You got a clean answer, not a
-blinded model, and those are different things.
+at all, hands over two facts from after the as-of date, and its training runs a
+year past the moment being simulated. This particular answer happened not to use
+any of that. The next one might. You got a clean answer, not a blinded model,
+and those are different things.
 
 A tool that printed only the first and third sections would call this run fine.
 

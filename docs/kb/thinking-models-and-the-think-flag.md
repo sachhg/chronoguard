@@ -29,10 +29,18 @@ ollama serve" message. See [[slow-model-is-not-an-absent-server]].
 
 Practical guidance:
 
-- **Do not use a reasoning model as the claim judge.** Classification is
-  mechanical: pick a label, name the documents. `--judge gemma3:4b` finishes in
-  seconds and scores 10/11 on the fixtures. A thinking model spends minutes per
-  claim to reach the same kind of answer.
+- **Do not use a reasoning model as the claim judge.** Measured on the same
+  eleven labelled claims:
+
+  | Judge | Correct | False leaks | Missed leaks | Slowest call |
+  | --- | --- | --- | --- | --- |
+  | gemma3:4b | 10/11 | 0 | 0 | seconds |
+  | qwen3:4b | 8/11 | 1 | 1 | 165s |
+
+  Slower is the least of it. qwen3 labelled the invented "Meridian will ship on
+  October 14 at $4,900 per seat" as **grounded**, which launders a leak as
+  evidence-backed. That is the worst failure this component has. Thinking does
+  not help on a task that is mechanical, and here it hurt.
 - Cap probe runs with `--max-future` and `--max-control` while iterating.
 - Expect the integration suite to be slow whenever `pick_model` lands on a
   thinking model.
