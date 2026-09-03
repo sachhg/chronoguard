@@ -4,7 +4,7 @@ title: How to run the two test suites
 type: procedure
 description: Fast offline suite versus the Ollama-backed integration suite.
 tags: [testing, howto]
-links: [integration-tests-skip-never-fail, test-that-the-raw-tool-leaks-first, test-doubles-matching-whole-prompts, thinking-models-and-the-think-flag, slow-model-is-not-an-absent-server]
+links: [integration-tests-skip-never-fail, test-that-the-raw-tool-leaks-first, test-doubles-matching-whole-prompts, thinking-models-and-the-think-flag, slow-model-is-not-an-absent-server, cli-output-assertions-must-strip-ansi]
 source: pyproject.toml
 ---
 ```bash

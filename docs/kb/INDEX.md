@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-47 notes.
+48 notes.
 
 ## concept
 
@@ -76,6 +76,7 @@ How to carry out a specific task in this repo.
 Traps, and bugs that already happened once.
 
 - [circular-import-via-package-root](circular-import-via-package-root.md) report.py read __version__ from chronoguard/__init__, which imports report. Use _version.py.
+- [cli-output-assertions-must-strip-ansi](cli-output-assertions-must-strip-ansi.md) Rich formats help text differently under CI, so substring assertions passed locally and failed on GitHub Actions.
 - [falsy-zero-limits](falsy-zero-limits.md) `if max_control` treated an explicit 0 as 'no limit'. Use `is not None`.
 - [integration-tests-skip-never-fail](integration-tests-skip-never-fail.md) Fixtures in conftest.py skip with an actionable message; keep new model-backed tests behind them.
 - [low-leakage-can-mean-weak-recall](low-leakage-can-mean-weak-recall.md) Small models fail recent facts for capacity reasons, which reads as blinding unless you check the cutoff signal too.
