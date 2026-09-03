@@ -101,7 +101,7 @@ Module: `chronoguard/claims.py`
 - Tests use synthetic answer + evidence fixtures whose correct labels are known
   in advance.
 
-## Phase 6: reporting
+## Phase 6: reporting (done)
 
 Modules: `chronoguard/report.py`, CLI command
 
@@ -112,7 +112,14 @@ Modules: `chronoguard/report.py`, CLI command
 
 ## Phase 7: docs, example, polish
 
+- **`docs/kb/`, a knowledge base in memory-engineering style.** Atomic,
+  addressable notes: one idea per file, frontmatter carrying a stable id, a
+  one-line description used to decide relevance, and a type. Cross-linked, with
+  an index that can be loaded on its own so a reader (human or agent) pulls in
+  only the notes it needs rather than the whole corpus. This is the primary
+  deliverable of the phase.
 - Full README: install, quickstart, config reference.
 - One worked `examples/` scenario in a clearly non-sports domain (e.g. reasoning
   about a product launch or a policy change as of a past date), end to end.
+- Any other docs the project needs on top of those.
 - Full suite green, final commit.

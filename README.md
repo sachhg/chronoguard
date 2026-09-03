@@ -25,10 +25,10 @@ order.
 
 ## Status
 
-Early. Phases 0 to 5 are done: the temporal filter, tool-call interception,
-fixture tools, an agent runner for local Ollama models, the parametric leakage
-probe, and claim-level classification. See [PLAN.md](PLAN.md) for what lands
-next.
+Early but complete end to end. Phases 0 to 6 are done: the temporal filter,
+tool-call interception, fixture tools, an agent runner for local Ollama models,
+the parametric leakage probe, claim-level classification, and reporting. Docs
+and a worked example are next, see [PLAN.md](PLAN.md).
 
 ## Quickstart
 
@@ -37,6 +37,7 @@ ollama serve &                # if it isn't already running
 chronoguard models            # what's installed, and can it call tools natively
 chronoguard run "When will Halden ship Meridian, and what will it cost per seat?"
 chronoguard probe --as-of 2023-06-01T00:00:00Z    # what does it already know?
+chronoguard report "When will Halden ship Meridian?" --json-out run.json
 ```
 
 That runs an agent against the packaged fixture corpora, guarded at
@@ -337,6 +338,98 @@ A couple of notes:
 - **Judge quality depends on the judge model.** `tests/claim_fixtures.py` holds
   answer-plus-evidence fixtures with known correct labels, and the integration
   suite grades a real model against them. `gemma3:4b` scores 6/6 on those.
+
+## Putting it together
+
+`chronoguard report` runs all three and combines them into one verdict.
+
+```bash
+chronoguard report "When will Halden ship Meridian, and what will it cost per seat?" \
+  --max-future 4 --max-control 3 --json-out run.json
+```
+
+```
+RISK: HIGH
+  - with no tools at all the model reproduced 75% of the post-as-of facts it was asked about
+  - the model's training data runs past the simulated date (2024-08-01), so filtering cannot blind it
+
+TOOL LEAKAGE (contained by filtering)
+  2 tool call(s), 15 record(s) retrieved
+  kept 7, filtered 8  (allowed=7, future=5, undated=2, unparseable=1)
+    web_search          10 seen,   5 kept,   5 filtered
+    document_store       5 seen,   2 kept,   3 filtered
+
+PARAMETRIC LEAKAGE (measured, not contained)
+  leakage 3/4 (75%), control 3/3 (100%), risk high
+  cutoff risk: high
+  produced with zero evidence in context:
+    vision-pro-price       expected '$3,499'
+    nobel-peace-2023       expected 'Narges Mohammadi'
+    openai-ouster          expected 'Sam Altman'
+
+CLAIMS IN THE ANSWER
+  6 claim(s): 5 grounded, 1 benign, 0 suspected leak(s), groundedness 100%
+```
+
+Read that carefully, because it's the case the whole project is built around.
+The filter worked. The answer is clean: every factual claim traces back to
+evidence, nothing leaked into the output. And the run is still **high risk**,
+because the same model, asked directly with no documents at all, hands over
+three facts from after the as-of date.
+
+A tool that only reported the first two sections would tell you this run was
+fine. It wasn't fine. It was lucky.
+
+### The verdict rules
+
+| Signal | Verdict |
+| --- | --- |
+| A claim asserts a specific fact the evidence never supplied | high |
+| The probe reproduces most post-as-of facts with no tools | high |
+| The probe reproduces some of them | elevated |
+| The model's training cutoff postdates the as-of date | elevated, even on a spotless run |
+| The probe's controls failed | unknown, not low |
+| Either measurement was skipped | unknown, not low |
+| Filter held, probe clean, every claim grounded | low |
+
+The worst signal wins, and every verdict carries its reasons. Two of those rules
+exist specifically so ChronoGuard can't report a clean bill of health it hasn't
+earned: a run on a model that demonstrably read past your as-of date is never
+`low`, and a zero leakage score from a model that can't answer the control
+questions is `unknown`, not clean.
+
+### JSON summary
+
+`--json-out run.json` writes a stable machine-readable shape alongside the text.
+
+```json
+{
+  "as_of": "2023-06-01T00:00:00+00:00",
+  "headline": { "risk": "high", "reasons": ["..."] },
+  "tool_leakage":       { "records_seen": 15, "records_kept": 7, "records_filtered": 8,
+                          "verdicts": {...}, "by_tool": {...} },
+  "parametric_leakage": { "leakage_score": 0.75, "control_score": 1.0,
+                          "risk_level": "high", "cutoff_risk": {...},
+                          "leaked_cases": [...] },
+  "claims":             { "groundedness": 1.0, "counts": {...}, "flagged": [...] },
+  "answer": "...",
+  "evidence": [{ "source_id": "...", "published_at": "..." }]
+}
+```
+
+`--json` prints it instead of the text report. `--skip-probe` and `--skip-claims`
+cut runtime when you only want the containment numbers, at the cost of dropping
+the verdict to `unknown`.
+
+```python
+from chronoguard import ScenarioConfig, run_scenario
+
+report = run_scenario(ScenarioConfig(task="...", as_of="2023-06-01T00:00:00Z"))
+report.headline_risk
+report.headline_reasons
+report.render()
+report.summary()
+```
 
 ## Install
 
