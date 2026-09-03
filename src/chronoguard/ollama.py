@@ -21,6 +21,7 @@ __all__ = [
     "ChatResponse",
     "ModelInfo",
     "OllamaClient",
+    "OllamaTimeout",
     "OllamaUnavailable",
     "default_host",
 ]
@@ -30,6 +31,15 @@ DEFAULT_HOST = "http://localhost:11434"
 
 class OllamaUnavailable(RuntimeError):
     """The server isn't reachable, or a request to it failed."""
+
+
+class OllamaTimeout(OllamaUnavailable):
+    """The server is reachable but answered too slowly.
+
+    Separate from OllamaUnavailable because the advice differs. "Start ollama
+    serve" is wrong when the server is up and a reasoning model is simply taking
+    a long time. Subclasses OllamaUnavailable so existing handlers still work.
+    """
 
 
 def default_host() -> str:
@@ -114,11 +124,13 @@ class OllamaClient:
 
     Args:
         host: Base URL. Defaults to OLLAMA_HOST, then localhost:11434.
-        timeout: Seconds per request. Small models on cold start are slow, so
-            this is generous by default.
+        timeout: Seconds per request. Generous by default because cold starts
+            are slow and reasoning models are slower still. A qwen3:4b claim
+            classification on a long evidence block has been seen to exceed
+            180s, so the default sits well above that.
     """
 
-    def __init__(self, host: str | None = None, timeout: float = 180.0) -> None:
+    def __init__(self, host: str | None = None, timeout: float = 600.0) -> None:
         self.host = normalize_host(host) if host else default_host()
         self.timeout = timeout
         self._capabilities: dict[str, list[str]] = {}
@@ -212,6 +224,8 @@ class OllamaClient:
             response = httpx.get(f"{self.host}{path}", timeout=self.timeout)
             response.raise_for_status()
             return response.json()
+        except httpx.TimeoutException as exc:
+            raise self._timeout(path) from exc
         except httpx.HTTPError as exc:
             raise OllamaUnavailable(f"GET {path} on {self.host} failed: {exc}") from exc
 
@@ -220,5 +234,16 @@ class OllamaClient:
             response = httpx.post(f"{self.host}{path}", json=body, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
+        except httpx.TimeoutException as exc:
+            raise self._timeout(path, body.get("model")) from exc
         except httpx.HTTPError as exc:
             raise OllamaUnavailable(f"POST {path} on {self.host} failed: {exc}") from exc
+
+    def _timeout(self, path: str, model: str | None = None) -> OllamaTimeout:
+        who = f"{model} " if model else ""
+        return OllamaTimeout(
+            f"{who}on {self.host} did not answer {path} within {self.timeout:g}s. "
+            "The server is up, the model is just slow. Reasoning models spend a long "
+            "time thinking on long prompts. Raise the timeout, cap the work with "
+            "--max-future / --max-control / --max-claims, or pick a smaller model."
+        )

@@ -11,7 +11,7 @@ import chronoguard
 from chronoguard import cli
 from chronoguard.cli import app
 from chronoguard.fixtures import POST_AS_OF_CANARIES
-from chronoguard.ollama import ModelInfo, OllamaUnavailable
+from chronoguard.ollama import ModelInfo, OllamaTimeout, OllamaUnavailable
 from helpers import CannedProbeClient, ScenarioClient, ScriptedClient, action, answer
 
 runner = CliRunner()
@@ -276,5 +276,34 @@ class TestReportCommand:
 
         monkeypatch.setattr(cli, "OllamaClient", boom)
         result = runner.invoke(app, ["report", "task"])
+        assert result.exit_code == 1
+        assert "ollama serve" in result.output
+
+
+class TestOllamaErrorAdvice:
+    """A timeout must not be answered with "start the server"."""
+
+    @pytest.mark.parametrize("command", [["models"], ["run", "task"], ["probe"], ["report", "task"]])
+    def test_a_timeout_does_not_suggest_starting_the_server(
+        self, monkeypatch: pytest.MonkeyPatch, command: list[str]
+    ) -> None:
+        def slow(**kw: object) -> None:
+            raise OllamaTimeout("qwen3:4b did not answer within 600s, the model is just slow")
+
+        monkeypatch.setattr(cli, "OllamaClient", slow)
+        result = runner.invoke(app, command)
+        assert result.exit_code == 1
+        assert "just slow" in result.output
+        assert "ollama serve" not in result.output
+
+    @pytest.mark.parametrize("command", [["models"], ["run", "task"], ["probe"], ["report", "task"]])
+    def test_an_unreachable_server_still_says_to_start_it(
+        self, monkeypatch: pytest.MonkeyPatch, command: list[str]
+    ) -> None:
+        def refused(**kw: object) -> None:
+            raise OllamaUnavailable("connection refused")
+
+        monkeypatch.setattr(cli, "OllamaClient", refused)
+        result = runner.invoke(app, command)
         assert result.exit_code == 1
         assert "ollama serve" in result.output

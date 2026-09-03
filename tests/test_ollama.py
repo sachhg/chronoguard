@@ -12,6 +12,7 @@ from chronoguard.ollama import (
     ChatResponse,
     ModelInfo,
     OllamaClient,
+    OllamaTimeout,
     OllamaUnavailable,
     default_host,
     normalize_host,
@@ -230,3 +231,74 @@ class TestErrors:
 
     def test_repr_names_the_host(self) -> None:
         assert "11434" in repr(OllamaClient(host="localhost:11434"))
+
+
+class TestTimeouts:
+    """A slow model is not an absent server, and the advice differs."""
+
+    def test_a_read_timeout_is_its_own_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "post",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ReadTimeout("timed out")),
+        )
+        with pytest.raises(OllamaTimeout):
+            OllamaClient(host="localhost:11434").chat("m", [{"role": "user", "content": "hi"}])
+
+    def test_a_timeout_still_counts_as_unavailable_for_old_handlers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "post",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ReadTimeout("timed out")),
+        )
+        with pytest.raises(OllamaUnavailable):
+            OllamaClient().chat("m", [{"role": "user", "content": "hi"}])
+
+    def test_the_message_names_the_model_and_says_what_to_do(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "post",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ReadTimeout("timed out")),
+        )
+        with pytest.raises(OllamaTimeout, match="qwen3:4b"):
+            OllamaClient(timeout=5).chat("qwen3:4b", [{"role": "user", "content": "hi"}])
+
+    def test_the_message_does_not_suggest_starting_the_server(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "post",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ReadTimeout("timed out")),
+        )
+        try:
+            OllamaClient().chat("m", [{"role": "user", "content": "hi"}])
+        except OllamaTimeout as exc:
+            assert "ollama serve" not in str(exc)
+            assert "slow" in str(exc)
+
+    def test_a_get_timeout_is_also_caught(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "get",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ReadTimeout("timed out")),
+        )
+        with pytest.raises(OllamaTimeout):
+            OllamaClient().list_models()
+
+    def test_a_connection_error_is_not_a_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            ollama_module.httpx,
+            "get",
+            lambda *a, **k: FakeResponse(None, error=ollama_module.httpx.ConnectError("refused")),
+        )
+        with pytest.raises(OllamaUnavailable) as caught:
+            OllamaClient().list_models()
+        assert not isinstance(caught.value, OllamaTimeout)
+
+    def test_the_default_timeout_allows_for_reasoning_models(self) -> None:
+        assert OllamaClient().timeout >= 300

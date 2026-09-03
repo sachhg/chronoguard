@@ -14,7 +14,7 @@ from chronoguard.agent import AgentConfig, run_agent
 from chronoguard.fixtures import FIXTURE_AS_OF, build_fixture_toolset
 from chronoguard.guard import GuardPolicy, TemporalGuard
 from chronoguard.interception import AuditLog
-from chronoguard.ollama import OllamaClient, OllamaUnavailable
+from chronoguard.ollama import OllamaClient, OllamaTimeout, OllamaUnavailable
 from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
 from chronoguard.report import ScenarioConfig, run_scenario
 
@@ -63,13 +63,11 @@ def models(
     host: Annotated[Optional[str], typer.Option(help="Ollama host. Defaults to OLLAMA_HOST.")] = None,
 ) -> None:
     """List locally installed Ollama models and whether they can call tools."""
-    client = OllamaClient(host=host)
     try:
+        client = OllamaClient(host=host)
         installed = client.list_models()
     except OllamaUnavailable as exc:
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        typer.echo("Start one with `ollama serve`.", err=True)
-        raise typer.Exit(code=1) from exc
+        raise _die(exc) from exc
 
     if not installed:
         typer.echo(f"No models installed on {client.host}. Try `ollama pull gemma3:4b`.")
@@ -119,9 +117,7 @@ def run(
     try:
         result = run_agent(config, tools, client=OllamaClient(host=host))
     except OllamaUnavailable as exc:
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        typer.echo("Start one with `ollama serve`.", err=True)
-        raise typer.Exit(code=1) from exc
+        raise _die(exc) from exc
 
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
@@ -186,9 +182,7 @@ def probe(
             judge_model=judge,
         ).run(chosen, as_of, max_future_cases=max_future, max_control_cases=max_control)
     except OllamaUnavailable as exc:
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        typer.echo("Start one with `ollama serve`.", err=True)
-        raise typer.Exit(code=1) from exc
+        raise _die(exc) from exc
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
@@ -288,9 +282,7 @@ def report(
     try:
         result = run_scenario(config, client=OllamaClient(host=host))
     except OllamaUnavailable as exc:
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        typer.echo("Start one with `ollama serve`.", err=True)
-        raise typer.Exit(code=1) from exc
+        raise _die(exc) from exc
 
     summary = result.summary()
     if json_out:
@@ -302,6 +294,14 @@ def report(
         typer.echo(result.render())
         if json_out:
             typer.echo(f"\nJSON summary written to {json_out}")
+
+
+def _die(exc: OllamaUnavailable) -> typer.Exit:
+    """Report an Ollama failure with advice that matches what actually went wrong."""
+    typer.secho(str(exc), fg=typer.colors.RED, err=True)
+    if not isinstance(exc, OllamaTimeout):
+        typer.echo("Start one with `ollama serve`.", err=True)
+    return typer.Exit(code=1)
 
 
 def _first_error(exc: Exception) -> str:
