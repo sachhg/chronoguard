@@ -4,7 +4,7 @@ title: Model cutoffs are a prior, the probe is the evidence
 type: decision
 description: model_cutoffs.json only decides pre-scoring risk flagging; never treat it as ground truth.
 tags: [probe, config]
-links: [probe-has-a-control-group, add-a-model-cutoff]
+links: [probe-has-a-control-group, add-a-model-cutoff, low-leakage-can-mean-weak-recall]
 source: src/chronoguard/data/model_cutoffs.json
 ---
 `model_cutoffs.json` holds approximate training cutoffs by model family. Its

@@ -1,5 +1,5 @@
 {
-  "note_count": 45,
+  "note_count": 46,
   "types": [
     "concept",
     "contract",
@@ -256,7 +256,8 @@
       ],
       "links": [
         "probe-has-a-control-group",
-        "add-a-model-cutoff"
+        "add-a-model-cutoff",
+        "low-leakage-can-mean-weak-recall"
       ],
       "source": "src/chronoguard/data/model_cutoffs.json"
     },
@@ -371,6 +372,24 @@
         "tune-a-judge-prompt"
       ],
       "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "low-leakage-can-mean-weak-recall",
+      "path": "low-leakage-can-mean-weak-recall.md",
+      "title": "A low leakage score can mean weak recall, not an early cutoff",
+      "type": "pitfall",
+      "description": "Small models fail recent facts for capacity reasons, which reads as blinding unless you check the cutoff signal too.",
+      "tags": [
+        "probe",
+        "scoring",
+        "interpretation"
+      ],
+      "links": [
+        "probe-has-a-control-group",
+        "cutoffs-are-a-prior-not-evidence",
+        "verdict-never-reports-unearned-clean"
+      ],
+      "source": "src/chronoguard/probe.py"
     },
     {
       "id": "measure-prompt-changes-on-a-set",
@@ -533,7 +552,8 @@
       ],
       "links": [
         "probe-does-not-ask-model-to-pretend",
-        "verdict-never-reports-unearned-clean"
+        "verdict-never-reports-unearned-clean",
+        "low-leakage-can-mean-weak-recall"
       ],
       "source": "src/chronoguard/probe.py"
     },

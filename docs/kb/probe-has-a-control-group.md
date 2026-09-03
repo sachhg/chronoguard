@@ -4,7 +4,7 @@ title: The probe scores controls, not just future facts
 type: decision
 description: Zero leakage from a model that can't answer anything is not evidence of blinding.
 tags: [probe, scoring]
-links: [probe-does-not-ask-model-to-pretend, verdict-never-reports-unearned-clean]
+links: [probe-does-not-ask-model-to-pretend, verdict-never-reports-unearned-clean, low-leakage-can-mean-weak-recall]
 source: src/chronoguard/probe.py
 ---
 Cases whose answers were already knowable at the as-of date run as a control
