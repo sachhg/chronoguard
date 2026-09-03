@@ -12,7 +12,7 @@ from chronoguard import cli
 from chronoguard.cli import app
 from chronoguard.fixtures import POST_AS_OF_CANARIES
 from chronoguard.ollama import ModelInfo, OllamaUnavailable
-from helpers import CannedProbeClient, ScriptedClient, action, answer
+from helpers import CannedProbeClient, ScenarioClient, ScriptedClient, action, answer
 
 runner = CliRunner()
 
@@ -207,3 +207,74 @@ class TestProbeCommand:
         result = runner.invoke(app, ["probe", "--cases", str(path)])
         assert "only-mine" in result.output
         assert "nobel-peace-2023" not in result.output
+
+
+class TestReportCommand:
+    def _wire(self, monkeypatch: pytest.MonkeyPatch) -> ScenarioClient:
+        client = ScenarioClient(
+            [action("web_search", query="meridian price"), answer("Summer, no price yet.")],
+            probe_answers={"Nobel Peace Prize": "Narges Mohammadi"},
+            claims=["Halden confirmed a summer window.", "No price has been announced."],
+        )
+        monkeypatch.setattr(cli, "OllamaClient", lambda **kw: client)
+        return client
+
+    def test_prints_the_full_text_report(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "when does meridian ship?", "--max-future", "2", "--max-control", "1"]
+        )
+        assert result.exit_code == 0, result.output
+        for heading in ("RISK:", "TOOL LEAKAGE", "PARAMETRIC LEAKAGE", "CLAIMS IN THE ANSWER"):
+            assert heading in result.output
+
+    def test_output_never_carries_post_as_of_content(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "meridian price october ferrous", "--skip-probe"])
+        assert [c for c in POST_AS_OF_CANARIES if c in result.output] == []
+
+    def test_json_flag_emits_only_the_summary(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "task", "--json", "--max-future", "2", "--max-control", "1"]
+        )
+        payload = json.loads(result.output)
+        assert payload["headline"]["risk"] in ("high", "elevated", "low", "unknown")
+        assert payload["tool_leakage"]["records_filtered"] >= 0
+        assert payload["parametric_leakage"]["leakage_score"] >= 0
+        assert "flagged" in payload["claims"]
+
+    def test_json_out_writes_the_file_alongside_the_text_report(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
+        self._wire(monkeypatch)
+        target = tmp_path / "summary.json"
+        result = runner.invoke(
+            app, ["report", "task", "--json-out", str(target), "--skip-probe", "--skip-claims"]
+        )
+        assert result.exit_code == 0
+        assert "ChronoGuard report" in result.output
+        assert str(target) in result.output
+        assert json.loads(target.read_text())["task"] == "task"
+
+    def test_stages_can_be_skipped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "task", "--skip-probe", "--skip-claims"])
+        assert "probe skipped" in result.output
+        assert "step skipped" in result.output
+        assert set(client.stages) == {"agent"}
+
+    def test_a_naive_as_of_is_rejected_with_advice(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "task", "--as-of", "2023-06-01"])
+        assert result.exit_code == 2
+        assert "timezone" in result.output.lower() or "offset" in result.output.lower()
+
+    def test_unreachable_server_exits_nonzero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def boom(**kw: object) -> None:
+            raise OllamaUnavailable("connection refused")
+
+        monkeypatch.setattr(cli, "OllamaClient", boom)
+        result = runner.invoke(app, ["report", "task"])
+        assert result.exit_code == 1
+        assert "ollama serve" in result.output

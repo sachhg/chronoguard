@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from pydantic import ValidationError
 
 from chronoguard import __version__
 from chronoguard.agent import AgentConfig, run_agent
@@ -14,6 +16,7 @@ from chronoguard.guard import GuardPolicy, TemporalGuard
 from chronoguard.interception import AuditLog
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
+from chronoguard.report import ScenarioConfig, run_scenario
 
 app = typer.Typer(
     name="chronoguard",
@@ -222,6 +225,92 @@ def probe(
             "\nIt also failed most controls, so a low leakage score here means it "
             "can't answer, not that it's blinded."
         )
+
+
+@app.command()
+def report(
+    task: Annotated[str, typer.Argument(help="What to ask the agent.")],
+    as_of: Annotated[
+        str, typer.Option("--as-of", help="The instant to simulate. Needs a timezone offset.")
+    ] = FIXTURE_AS_OF,
+    model: Annotated[
+        Optional[str], typer.Option(help="Ollama model. Discovered at runtime if unset.")
+    ] = None,
+    judge: Annotated[
+        Optional[str], typer.Option(help="Model for claim classification. Reuses --model if unset.")
+    ] = None,
+    mode: Annotated[str, typer.Option(help="auto, native, or react.")] = "auto",
+    policy: Annotated[
+        str, typer.Option(help="strict drops post-as-of evidence, warn keeps and flags it.")
+    ] = "strict",
+    max_steps: Annotated[int, typer.Option(help="Cap on agent loop iterations.")] = 6,
+    max_claims: Annotated[int, typer.Option(help="Cap on claims classified.")] = 8,
+    max_future: Annotated[Optional[int], typer.Option(help="Cap on probe questions.")] = None,
+    max_control: Annotated[Optional[int], typer.Option(help="Cap on control questions.")] = None,
+    skip_probe: Annotated[
+        bool, typer.Option("--skip-probe", help="Skip the parametric leakage probe.")
+    ] = False,
+    skip_claims: Annotated[
+        bool, typer.Option("--skip-claims", help="Skip claim classification.")
+    ] = False,
+    json_out: Annotated[
+        Optional[str], typer.Option("--json-out", help="Also write the JSON summary to this path.")
+    ] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the JSON summary instead of the text report.")
+    ] = False,
+    host: Annotated[Optional[str], typer.Option(help="Ollama host.")] = None,
+) -> None:
+    """Run a full scenario: agent run, leakage probe, claim classification.
+
+    Prints a human-readable report and, with --json-out, writes the machine
+    summary alongside it.
+    """
+    try:
+        config = ScenarioConfig(
+            task=task,
+            as_of=as_of,
+            model=model,
+            judge_model=judge,
+            mode=mode,
+            policy=GuardPolicy(policy),
+            max_steps=max_steps,
+            probe=not skip_probe,
+            classify=not skip_claims,
+            max_claims=max_claims,
+            max_future_cases=max_future,
+            max_control_cases=max_control,
+        )
+    except (ValueError, ValidationError) as exc:
+        typer.secho(_first_error(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    try:
+        result = run_scenario(config, client=OllamaClient(host=host))
+    except OllamaUnavailable as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        typer.echo("Start one with `ollama serve`.", err=True)
+        raise typer.Exit(code=1) from exc
+
+    summary = result.summary()
+    if json_out:
+        Path(json_out).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+
+    if as_json:
+        typer.echo(json.dumps(summary, indent=2))
+    else:
+        typer.echo(result.render())
+        if json_out:
+            typer.echo(f"\nJSON summary written to {json_out}")
+
+
+def _first_error(exc: Exception) -> str:
+    """Pydantic wraps our as_of message in a validation error, dig it back out."""
+    if isinstance(exc, ValidationError):
+        errors = exc.errors()
+        if errors:
+            return str(errors[0].get("msg", exc))
+    return str(exc)
 
 
 def main() -> None:
