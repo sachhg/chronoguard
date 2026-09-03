@@ -1,0 +1,685 @@
+{
+  "note_count": 41,
+  "types": [
+    "concept",
+    "contract",
+    "decision",
+    "map",
+    "pitfall",
+    "procedure"
+  ],
+  "notes": [
+    {
+      "id": "adapter-interface",
+      "path": "adapter-interface.md",
+      "title": "Adapters map a tool's own shape onto evidence records",
+      "type": "contract",
+      "description": "The three adapter kinds and when each applies.",
+      "tags": [
+        "interception",
+        "api"
+      ],
+      "links": [
+        "evidence-record-contract",
+        "guarded-tool-contract",
+        "add-a-guarded-tool"
+      ],
+      "source": "src/chronoguard/interception.py"
+    },
+    {
+      "id": "add-a-fixture-document",
+      "path": "add-a-fixture-document.md",
+      "title": "How to add a fixture document without blunting the tests",
+      "type": "procedure",
+      "description": "Two invariants the tool corpora must keep, enforced by corpus-design tests.",
+      "tags": [
+        "fixtures",
+        "testing",
+        "howto"
+      ],
+      "links": [
+        "canary-strings",
+        "fictional-fixture-scenario"
+      ],
+      "source": "src/chronoguard/fixtures/data/"
+    },
+    {
+      "id": "add-a-guarded-tool",
+      "path": "add-a-guarded-tool.md",
+      "title": "How to guard your own tool",
+      "type": "procedure",
+      "description": "Wrap any callable returning evidence so an agent only sees pre-as-of results.",
+      "tags": [
+        "interception",
+        "howto"
+      ],
+      "links": [
+        "adapter-interface",
+        "guarded-tool-contract",
+        "audit-log-is-the-reporting-side"
+      ],
+      "source": "src/chronoguard/interception.py"
+    },
+    {
+      "id": "add-a-model-cutoff",
+      "path": "add-a-model-cutoff.md",
+      "title": "How to add or correct a model cutoff",
+      "type": "procedure",
+      "description": "Edit model_cutoffs.json; matching is by family with longest-prefix fallback.",
+      "tags": [
+        "probe",
+        "config",
+        "howto"
+      ],
+      "links": [
+        "cutoffs-are-a-prior-not-evidence"
+      ],
+      "source": "src/chronoguard/data/model_cutoffs.json"
+    },
+    {
+      "id": "add-a-probe-case",
+      "path": "add-a-probe-case.md",
+      "title": "How to add a probe case",
+      "type": "procedure",
+      "description": "Extend probe_cases.json or point at your own file.",
+      "tags": [
+        "probe",
+        "howto"
+      ],
+      "links": [
+        "probe-cases-must-be-real",
+        "claim-and-answer-matching",
+        "cutoffs-are-a-prior-not-evidence"
+      ],
+      "source": "src/chronoguard/data/probe_cases.json"
+    },
+    {
+      "id": "agent-never-told-what-was-filtered",
+      "path": "agent-never-told-what-was-filtered.md",
+      "title": "The agent is never told what was filtered",
+      "type": "decision",
+      "description": "Filter counts go to the audit log, never into the model's context.",
+      "tags": [
+        "agent",
+        "prompting"
+      ],
+      "links": [
+        "prompt-is-not-containment",
+        "audit-log-is-the-reporting-side"
+      ],
+      "source": "src/chronoguard/agent.py"
+    },
+    {
+      "id": "audit-log-is-the-reporting-side",
+      "path": "audit-log-is-the-reporting-side.md",
+      "title": "Counts live on the AuditLog, not in the return value",
+      "type": "contract",
+      "description": "Share one log across an agent's tools; that is where filtered counts come from.",
+      "tags": [
+        "interception",
+        "report"
+      ],
+      "links": [
+        "guarded-tool-contract",
+        "agent-never-told-what-was-filtered",
+        "scenario-summary-schema"
+      ],
+      "source": "src/chronoguard/interception.py"
+    },
+    {
+      "id": "boundary-rule-is-exclusive",
+      "path": "boundary-rule-is-exclusive.md",
+      "title": "The as-of boundary is exclusive",
+      "type": "decision",
+      "description": "published_at == as_of is rejected. Why, and how to get inclusive behaviour instead.",
+      "tags": [
+        "guard",
+        "dates"
+      ],
+      "links": [
+        "undated-records-rejected-by-default",
+        "probe-case-boundary-matches-the-guard"
+      ],
+      "source": "src/chronoguard/guard.py"
+    },
+    {
+      "id": "canary-strings",
+      "path": "canary-strings.md",
+      "title": "Canary strings are how leakage is verified",
+      "type": "concept",
+      "description": "POST_AS_OF_CANARIES lists strings that only exist in post-as-of fixtures; tests grep for them.",
+      "tags": [
+        "testing",
+        "fixtures"
+      ],
+      "links": [
+        "fictional-fixture-scenario",
+        "test-that-the-raw-tool-leaks-first",
+        "add-a-fixture-document"
+      ],
+      "source": "src/chronoguard/fixtures/tools.py"
+    },
+    {
+      "id": "capped-probe-runs-take-nearest-cases",
+      "path": "capped-probe-runs-take-nearest-cases.md",
+      "title": "Capped probe runs take the cases nearest as_of",
+      "type": "decision",
+      "description": "max_future_cases keeps cases closest to the as-of date, because those are where leakage shows.",
+      "tags": [
+        "probe",
+        "scoring",
+        "pitfall"
+      ],
+      "links": [
+        "probe-has-a-control-group",
+        "falsy-zero-limits"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "circular-import-via-package-root",
+      "path": "circular-import-via-package-root.md",
+      "title": "Do not import from the package root inside a module",
+      "type": "pitfall",
+      "description": "report.py read __version__ from chronoguard/__init__, which imports report. Use _version.py.",
+      "tags": [
+        "python",
+        "bugs",
+        "architecture"
+      ],
+      "links": [
+        "module-map"
+      ],
+      "source": "src/chronoguard/_version.py"
+    },
+    {
+      "id": "claim-and-answer-matching",
+      "path": "claim-and-answer-matching.md",
+      "title": "How answers are matched: squash, then fuzzy, then judge",
+      "type": "contract",
+      "description": "Matching rules used by the probe, including the short-answer token rule.",
+      "tags": [
+        "probe",
+        "scoring"
+      ],
+      "links": [
+        "add-a-probe-case",
+        "probe-cases-must-be-real"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "claim-label-meanings",
+      "path": "claim-label-meanings.md",
+      "title": "What the three claim labels mean",
+      "type": "contract",
+      "description": "grounded, ungrounded-but-benign, suspected-parametric-leak, plus the unclassified escape hatch.",
+      "tags": [
+        "claims",
+        "api"
+      ],
+      "links": [
+        "judge-asked-observable-question",
+        "groundedness-excludes-hedges",
+        "preamble-filters-eat-real-claims"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "containment-vs-measurement",
+      "path": "containment-vs-measurement.md",
+      "title": "Which module does containment, which does measurement",
+      "type": "concept",
+      "description": "Layer 1 contains tool leakage; layer 2 measures parametric leakage. Map of what belongs where.",
+      "tags": [
+        "core",
+        "architecture"
+      ],
+      "links": [
+        "two-leakage-channels",
+        "module-map"
+      ],
+      "source": "src/chronoguard/"
+    },
+    {
+      "id": "cutoffs-are-a-prior-not-evidence",
+      "path": "cutoffs-are-a-prior-not-evidence.md",
+      "title": "Model cutoffs are a prior, the probe is the evidence",
+      "type": "decision",
+      "description": "model_cutoffs.json only decides pre-scoring risk flagging; never treat it as ground truth.",
+      "tags": [
+        "probe",
+        "config"
+      ],
+      "links": [
+        "probe-has-a-control-group",
+        "add-a-model-cutoff"
+      ],
+      "source": "src/chronoguard/data/model_cutoffs.json"
+    },
+    {
+      "id": "evidence-record-contract",
+      "path": "evidence-record-contract.md",
+      "title": "EvidenceRecord is the only shape the guard understands",
+      "type": "contract",
+      "description": "Fields, the two constructors, and when to use which.",
+      "tags": [
+        "evidence",
+        "api"
+      ],
+      "links": [
+        "adapter-interface",
+        "naive-datetimes-are-not-instants",
+        "undated-records-rejected-by-default"
+      ],
+      "source": "src/chronoguard/evidence.py"
+    },
+    {
+      "id": "falsy-zero-limits",
+      "path": "falsy-zero-limits.md",
+      "title": "Do not test caps with a bare truthiness check",
+      "type": "pitfall",
+      "description": "`if max_control` treated an explicit 0 as 'no limit'. Use `is not None`.",
+      "tags": [
+        "python",
+        "bugs"
+      ],
+      "links": [
+        "capped-probe-runs-take-nearest-cases"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "fictional-fixture-scenario",
+      "path": "fictional-fixture-scenario.md",
+      "title": "The fixture scenario is fictional on purpose",
+      "type": "decision",
+      "description": "Halden Systems and Meridian are invented so any leak is attributable to a tool, not to training.",
+      "tags": [
+        "fixtures",
+        "testing"
+      ],
+      "links": [
+        "canary-strings",
+        "test-that-the-raw-tool-leaks-first",
+        "add-a-fixture-document"
+      ],
+      "source": "src/chronoguard/fixtures/data/"
+    },
+    {
+      "id": "groundedness-excludes-hedges",
+      "path": "groundedness-excludes-hedges.md",
+      "title": "Groundedness leaves benign claims out of the denominator",
+      "type": "contract",
+      "description": "Only grounded plus leaked claims count, so a hedge-heavy answer cannot look well grounded.",
+      "tags": [
+        "claims",
+        "scoring"
+      ],
+      "links": [
+        "claim-label-meanings"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "guarded-tool-contract",
+      "path": "guarded-tool-contract.md",
+      "title": "GuardedTool wraps a callable and keeps its signature",
+      "type": "contract",
+      "description": "What wrapping changes, what it preserves, and what not to wrap.",
+      "tags": [
+        "interception",
+        "api",
+        "agent"
+      ],
+      "links": [
+        "adapter-interface",
+        "audit-log-is-the-reporting-side",
+        "add-a-guarded-tool"
+      ],
+      "source": "src/chronoguard/interception.py"
+    },
+    {
+      "id": "integration-tests-skip-never-fail",
+      "path": "integration-tests-skip-never-fail.md",
+      "title": "Integration tests skip, they never fail on a missing server",
+      "type": "pitfall",
+      "description": "Fixtures in conftest.py skip with an actionable message; keep new model-backed tests behind them.",
+      "tags": [
+        "testing"
+      ],
+      "links": [
+        "run-the-test-suites"
+      ],
+      "source": "tests/conftest.py"
+    },
+    {
+      "id": "judge-asked-observable-question",
+      "path": "judge-asked-observable-question.md",
+      "title": "The judge is asked the observable question",
+      "type": "decision",
+      "description": "The LLM judge decides 'is this fact in the documents', not 'is this parametric leakage'.",
+      "tags": [
+        "claims",
+        "prompting"
+      ],
+      "links": [
+        "claim-label-meanings",
+        "tune-a-judge-prompt"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "module-map",
+      "path": "module-map.md",
+      "title": "Where everything lives",
+      "type": "map",
+      "description": "One line per module and data file, in dependency order.",
+      "tags": [
+        "architecture",
+        "orientation"
+      ],
+      "links": [
+        "containment-vs-measurement",
+        "repo-conventions",
+        "circular-import-via-package-root",
+        "typer-collapses-single-command-apps"
+      ],
+      "source": "src/chronoguard/"
+    },
+    {
+      "id": "naive-datetimes-are-not-instants",
+      "path": "naive-datetimes-are-not-instants.md",
+      "title": "A naive datetime is not a point on the timeline",
+      "type": "decision",
+      "description": "Timezone-naive timestamps parse to None unless assume_tz is passed. Bare date strings too.",
+      "tags": [
+        "dates",
+        "evidence"
+      ],
+      "links": [
+        "undated-records-rejected-by-default",
+        "evidence-record-contract"
+      ],
+      "source": "src/chronoguard/evidence.py"
+    },
+    {
+      "id": "ordered-procedure-beats-a-menu",
+      "path": "ordered-procedure-beats-a-menu.md",
+      "title": "Give small models an ordered procedure, not a menu",
+      "type": "pitfall",
+      "description": "Three parallel label options made gemma3:4b pick UNSUPPORTED for everything; ordering fixed it.",
+      "tags": [
+        "prompting",
+        "claims"
+      ],
+      "links": [
+        "tune-a-judge-prompt",
+        "judge-asked-observable-question"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "preamble-filters-eat-real-claims",
+      "path": "preamble-filters-eat-real-claims.md",
+      "title": "Keep chatter filters narrow",
+      "type": "pitfall",
+      "description": "A preamble regex listing 'claims?|answer' silently dropped genuine claims starting with those words.",
+      "tags": [
+        "claims",
+        "parsing",
+        "bugs"
+      ],
+      "links": [
+        "claim-label-meanings"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
+      "id": "probe-case-boundary-matches-the-guard",
+      "path": "probe-case-boundary-matches-the-guard.md",
+      "title": "Probe cases use the same exclusive boundary as the guard",
+      "type": "contract",
+      "description": "knowable_from >= as_of makes a case a probe, matching published_at >= as_of being a violation.",
+      "tags": [
+        "probe",
+        "dates"
+      ],
+      "links": [
+        "boundary-rule-is-exclusive",
+        "probe-has-a-control-group"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "probe-cases-must-be-real",
+      "path": "probe-cases-must-be-real.md",
+      "title": "Probe cases must be real world facts",
+      "type": "decision",
+      "description": "Unlike tool fixtures, probe cases test actual training data so they cannot be invented.",
+      "tags": [
+        "probe",
+        "fixtures"
+      ],
+      "links": [
+        "fictional-fixture-scenario",
+        "add-a-probe-case"
+      ],
+      "source": "src/chronoguard/data/probe_cases.json"
+    },
+    {
+      "id": "probe-does-not-ask-model-to-pretend",
+      "path": "probe-does-not-ask-model-to-pretend.md",
+      "title": "The probe never asks the model to pretend",
+      "type": "decision",
+      "description": "Probe questions are asked straight, because pretending measures compliance not knowledge.",
+      "tags": [
+        "probe",
+        "prompting"
+      ],
+      "links": [
+        "prompt-is-not-containment",
+        "probe-has-a-control-group"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "probe-has-a-control-group",
+      "path": "probe-has-a-control-group.md",
+      "title": "The probe scores controls, not just future facts",
+      "type": "decision",
+      "description": "Zero leakage from a model that can't answer anything is not evidence of blinding.",
+      "tags": [
+        "probe",
+        "scoring"
+      ],
+      "links": [
+        "probe-does-not-ask-model-to-pretend",
+        "verdict-never-reports-unearned-clean"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "prompt-is-not-containment",
+      "path": "prompt-is-not-containment.md",
+      "title": "The system prompt is not the containment mechanism",
+      "type": "decision",
+      "description": "The as-of line in the prompt keeps the model on task; the guard is what actually blocks the future.",
+      "tags": [
+        "agent",
+        "prompting",
+        "core"
+      ],
+      "links": [
+        "two-leakage-channels",
+        "agent-never-told-what-was-filtered"
+      ],
+      "source": "src/chronoguard/agent.py"
+    },
+    {
+      "id": "repo-conventions",
+      "path": "repo-conventions.md",
+      "title": "Repo conventions in one place",
+      "type": "map",
+      "description": "Writing style, commit rules and test discipline; CLAUDE.md is the source of truth.",
+      "tags": [
+        "conventions",
+        "orientation"
+      ],
+      "links": [
+        "module-map",
+        "run-the-test-suites"
+      ],
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "run-the-test-suites",
+      "path": "run-the-test-suites.md",
+      "title": "How to run the two test suites",
+      "type": "procedure",
+      "description": "Fast offline suite versus the Ollama-backed integration suite.",
+      "tags": [
+        "testing",
+        "howto"
+      ],
+      "links": [
+        "integration-tests-skip-never-fail",
+        "test-that-the-raw-tool-leaks-first",
+        "test-doubles-matching-whole-prompts"
+      ],
+      "source": "pyproject.toml"
+    },
+    {
+      "id": "scenario-summary-schema",
+      "path": "scenario-summary-schema.md",
+      "title": "The JSON summary shape is stable and diffable",
+      "type": "contract",
+      "description": "Top-level keys of ScenarioReport.summary() and what consumers can rely on.",
+      "tags": [
+        "report",
+        "api"
+      ],
+      "links": [
+        "verdict-never-reports-unearned-clean",
+        "audit-log-is-the-reporting-side"
+      ],
+      "source": "src/chronoguard/report.py"
+    },
+    {
+      "id": "test-doubles-matching-whole-prompts",
+      "path": "test-doubles-matching-whole-prompts.md",
+      "title": "Match test doubles against the claim, not the whole prompt",
+      "type": "pitfall",
+      "description": "Few-shot examples in a prompt will match a fake client's keyword routing.",
+      "tags": [
+        "testing",
+        "bugs"
+      ],
+      "links": [
+        "tune-a-judge-prompt",
+        "ordered-procedure-beats-a-menu"
+      ],
+      "source": "tests/helpers.py"
+    },
+    {
+      "id": "test-that-the-raw-tool-leaks-first",
+      "path": "test-that-the-raw-tool-leaks-first.md",
+      "title": "Assert the unguarded path leaks before asserting the guarded one doesn't",
+      "type": "pitfall",
+      "description": "A leak test passes trivially if the tool never returned the future in the first place.",
+      "tags": [
+        "testing",
+        "fixtures"
+      ],
+      "links": [
+        "canary-strings",
+        "fictional-fixture-scenario"
+      ],
+      "source": "tests/test_fixture_tools.py"
+    },
+    {
+      "id": "tune-a-judge-prompt",
+      "path": "tune-a-judge-prompt.md",
+      "title": "How to tune a judge prompt against fixtures",
+      "type": "procedure",
+      "description": "Measure against known labels before and after; do not guess at prompt changes.",
+      "tags": [
+        "claims",
+        "prompting",
+        "howto"
+      ],
+      "links": [
+        "judge-asked-observable-question",
+        "ordered-procedure-beats-a-menu"
+      ],
+      "source": "tests/claim_fixtures.py"
+    },
+    {
+      "id": "two-leakage-channels",
+      "path": "two-leakage-channels.md",
+      "title": "Two leakage channels, two different fixes",
+      "type": "concept",
+      "description": "The central model: tool leakage is containable, parametric leakage is only measurable.",
+      "tags": [
+        "core",
+        "design"
+      ],
+      "links": [
+        "containment-vs-measurement",
+        "prompt-is-not-containment",
+        "verdict-never-reports-unearned-clean"
+      ],
+      "source": "DESIGN.md"
+    },
+    {
+      "id": "typer-collapses-single-command-apps",
+      "path": "typer-collapses-single-command-apps.md",
+      "title": "Typer needs a callback to stay a command group",
+      "type": "pitfall",
+      "description": "With one command and no @app.callback(), Typer drops the subcommand name.",
+      "tags": [
+        "cli",
+        "bugs"
+      ],
+      "links": [
+        "module-map"
+      ],
+      "source": "src/chronoguard/cli.py"
+    },
+    {
+      "id": "undated-records-rejected-by-default",
+      "path": "undated-records-rejected-by-default.md",
+      "title": "Undated records are rejected by default",
+      "type": "decision",
+      "description": "No timestamp, junk timestamp or naive timestamp means rejected unless allow_undated is set.",
+      "tags": [
+        "guard",
+        "dates",
+        "defaults"
+      ],
+      "links": [
+        "boundary-rule-is-exclusive",
+        "naive-datetimes-are-not-instants",
+        "evidence-record-contract"
+      ],
+      "source": "src/chronoguard/guard.py"
+    },
+    {
+      "id": "verdict-never-reports-unearned-clean",
+      "path": "verdict-never-reports-unearned-clean.md",
+      "title": "The verdict never reports a clean bill it hasn't earned",
+      "type": "decision",
+      "description": "Two rules stop a spotless-looking run from reading as low risk.",
+      "tags": [
+        "report",
+        "core"
+      ],
+      "links": [
+        "two-leakage-channels",
+        "probe-has-a-control-group",
+        "scenario-summary-schema"
+      ],
+      "source": "src/chronoguard/report.py"
+    }
+  ]
+}
