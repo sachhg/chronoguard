@@ -4,7 +4,7 @@ title: Probe cases must be real world facts
 type: decision
 description: Unlike tool fixtures, probe cases test actual training data so they cannot be invented.
 tags: [probe, fixtures]
-links: [fictional-fixture-scenario, add-a-probe-case]
+links: [fictional-fixture-scenario, add-a-probe-case, probe-questions-must-not-leak-answers]
 source: src/chronoguard/data/probe_cases.json
 ---
 Tool fixtures are fictional. Probe cases must not be.

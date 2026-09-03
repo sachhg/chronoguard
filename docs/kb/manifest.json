@@ -1,5 +1,5 @@
 {
-  "note_count": 42,
+  "note_count": 44,
   "types": [
     "concept",
     "contract",
@@ -89,7 +89,8 @@
       "links": [
         "probe-cases-must-be-real",
         "claim-and-answer-matching",
-        "cutoffs-are-a-prior-not-evidence"
+        "cutoffs-are-a-prior-not-evidence",
+        "probe-questions-must-not-leak-answers"
       ],
       "source": "src/chronoguard/data/probe_cases.json"
     },
@@ -204,7 +205,8 @@
       ],
       "links": [
         "add-a-probe-case",
-        "probe-cases-must-be-real"
+        "probe-cases-must-be-real",
+        "numbers-are-matched-exactly"
       ],
       "source": "src/chronoguard/probe.py"
     },
@@ -422,6 +424,22 @@
       "source": "src/chronoguard/evidence.py"
     },
     {
+      "id": "numbers-are-matched-exactly",
+      "path": "numbers-are-matched-exactly.md",
+      "title": "Numbers are matched exactly, never fuzzily",
+      "type": "contract",
+      "description": "fuzzy_match requires every digit run in a variant to appear, because one digit apart is a different fact.",
+      "tags": [
+        "probe",
+        "scoring"
+      ],
+      "links": [
+        "claim-and-answer-matching",
+        "probe-questions-must-not-leak-answers"
+      ],
+      "source": "src/chronoguard/probe.py"
+    },
+    {
       "id": "ordered-procedure-beats-a-menu",
       "path": "ordered-procedure-beats-a-menu.md",
       "title": "Give small models an ordered procedure, not a menu",
@@ -481,7 +499,8 @@
       ],
       "links": [
         "fictional-fixture-scenario",
-        "add-a-probe-case"
+        "add-a-probe-case",
+        "probe-questions-must-not-leak-answers"
       ],
       "source": "src/chronoguard/data/probe_cases.json"
     },
@@ -516,6 +535,24 @@
         "verdict-never-reports-unearned-clean"
       ],
       "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "probe-questions-must-not-leak-answers",
+      "path": "probe-questions-must-not-leak-answers.md",
+      "title": "A probe question must not hand over its own answer",
+      "type": "decision",
+      "description": "Questions naming the answer's defining attribute produce false leakage from models with no post-cutoff knowledge.",
+      "tags": [
+        "probe",
+        "fixtures",
+        "scoring"
+      ],
+      "links": [
+        "add-a-probe-case",
+        "probe-cases-must-be-real",
+        "claim-and-answer-matching"
+      ],
+      "source": "src/chronoguard/data/probe_cases.json"
     },
     {
       "id": "prompt-is-not-containment",

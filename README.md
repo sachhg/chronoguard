@@ -39,6 +39,19 @@ chronoguard models            # what's installed, and can it call tools natively
 chronoguard report "When will Halden ship Meridian, and what will it cost per seat?"
 ```
 
+`chronoguard models` tells you which loop each model will drive:
+
+```
+2 model(s) on http://localhost:11434:
+
+  qwen3:4b                             4.0B  native tools
+  gemma3:4b                            4.3B  react fallback
+```
+
+That's read from the model's own `capabilities`, not a list baked into
+ChronoGuard. Models with native tool calling get real tool definitions; the rest
+get a text protocol. Both paths are tested against real models.
+
 That runs an agent against packaged fixture corpora guarded at 2023-06-01,
 probes the model for what it already knows, classifies the answer's claims, and
 prints a verdict:

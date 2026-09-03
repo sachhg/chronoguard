@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-42 notes.
+44 notes.
 
 ## concept
 
@@ -39,6 +39,7 @@ Choices that were made deliberately, with the reasoning. Do not reverse one with
 - [probe-cases-must-be-real](probe-cases-must-be-real.md) Unlike tool fixtures, probe cases test actual training data so they cannot be invented.
 - [probe-does-not-ask-model-to-pretend](probe-does-not-ask-model-to-pretend.md) Probe questions are asked straight, because pretending measures compliance not knowledge.
 - [probe-has-a-control-group](probe-has-a-control-group.md) Zero leakage from a model that can't answer anything is not evidence of blinding.
+- [probe-questions-must-not-leak-answers](probe-questions-must-not-leak-answers.md) Questions naming the answer's defining attribute produce false leakage from models with no post-cutoff knowledge.
 - [prompt-is-not-containment](prompt-is-not-containment.md) The as-of line in the prompt keeps the model on task; the guard is what actually blocks the future.
 - [undated-records-rejected-by-default](undated-records-rejected-by-default.md) No timestamp, junk timestamp or naive timestamp means rejected unless allow_undated is set.
 - [verdict-never-reports-unearned-clean](verdict-never-reports-unearned-clean.md) Two rules stop a spotless-looking run from reading as low risk.
@@ -54,6 +55,7 @@ Shapes and interfaces other code depends on.
 - [evidence-record-contract](evidence-record-contract.md) Fields, the two constructors, and when to use which.
 - [groundedness-excludes-hedges](groundedness-excludes-hedges.md) Only grounded plus leaked claims count, so a hedge-heavy answer cannot look well grounded.
 - [guarded-tool-contract](guarded-tool-contract.md) What wrapping changes, what it preserves, and what not to wrap.
+- [numbers-are-matched-exactly](numbers-are-matched-exactly.md) fuzzy_match requires every digit run in a variant to appear, because one digit apart is a different fact.
 - [probe-case-boundary-matches-the-guard](probe-case-boundary-matches-the-guard.md) knowable_from >= as_of makes a case a probe, matching published_at >= as_of being a violation.
 - [scenario-summary-schema](scenario-summary-schema.md) Top-level keys of ScenarioReport.summary() and what consumers can rely on.
 

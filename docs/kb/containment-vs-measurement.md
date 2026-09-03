@@ -22,3 +22,7 @@ tested and the model-in-the-loop parts sit behind `@pytest.mark.integration`.
 
 If you find yourself trying to make layer 1 smarter about what the model knows,
 stop. That is layer 2's job and it needs a model to do it.
+
+Both agent modes are exercised against real models: qwen3:4b reports the `tools`
+capability and drives the native path, gemma3:4b does not and drives the react
+fallback. Keep at least one of each installed if you are changing `agent.py`.

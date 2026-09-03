@@ -159,6 +159,17 @@ the model replies with one JSON object per turn. Small models wrap that JSON in
 code fences and prose, so the parser scans for a balanced object and nudges the
 model a couple of times before giving up.
 
+Both paths are exercised against real models. `qwen3:4b` reports the `tools`
+capability and drives the native path; `gemma3:4b` does not and drives the react
+fallback. If you're changing `agent.py`, keep one of each installed or half the
+loop goes untested:
+
+```bash
+ollama pull qwen3:4b     # native tool calling
+ollama pull gemma3:4b    # react fallback
+pytest -m integration
+```
+
 Two things the runner does on purpose:
 
 - **The prompt is not the containment.** The "you are operating as of X" line
