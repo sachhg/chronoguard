@@ -1,0 +1,98 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Import the package
+        # Catches circular imports that the test suite misses, since tests
+        # import submodules directly. This has bitten once already.
+        run: python -c "import chronoguard; print(chronoguard.__version__)"
+
+      - name: CLI entrypoint
+        run: chronoguard --version && chronoguard --help
+
+      - name: Offline suite
+        run: pytest -m "not integration" -q
+
+      - name: Integration tests skip cleanly with no Ollama
+        # There is no Ollama on the runner. The point is that the suite stays
+        # green and says why it skipped, rather than failing on a missing server.
+        run: pytest -m integration -rs
+
+      - name: Knowledge base index is up to date
+        run: |
+          python scripts/build_kb_index.py
+          git diff --exit-code docs/kb/INDEX.md docs/kb/manifest.json
+
+  build:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          pip install build twine
+          python -m build
+
+      - name: Check metadata
+        run: twine check dist/*
+
+      - name: Packaged data files are present in the wheel
+        # The probe cases, cutoff table and fixture corpora are packaged data.
+        # A packaging change that drops them breaks the library silently.
+        run: |
+          python - <<'PY'
+          import glob, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          names = set(zipfile.ZipFile(wheel).namelist())
+          required = {
+              "chronoguard/data/probe_cases.json",
+              "chronoguard/data/model_cutoffs.json",
+              "chronoguard/fixtures/data/web_corpus.json",
+              "chronoguard/fixtures/data/doc_store.json",
+          }
+          missing = required - names
+          assert not missing, f"wheel is missing packaged data: {missing}"
+          print(f"{wheel}: all packaged data present")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
