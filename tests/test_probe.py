@@ -156,6 +156,36 @@ class TestFuzzyMatch:
         assert not fuzzy_match("", ["Meridian"]).matched
 
 
+class TestNumbersAreNeverFuzzy:
+    """A digit apart is a different fact, however similar the characters look."""
+
+    def test_a_wrong_date_does_not_match(self) -> None:
+        # "november 17" against "november 13" scores 0.91 on characters. It is
+        # still the wrong date, and scoring it as a hit inflates leakage.
+        assert not fuzzy_match("November 13, 2023", ["November 17"]).matched
+
+    def test_the_right_date_still_matches(self) -> None:
+        assert fuzzy_match("on November 17 2023", ["November 17"]).matched
+
+    def test_a_wrong_price_does_not_match(self) -> None:
+        assert not fuzzy_match("about 3,500 dollars", ["$3,499"]).matched
+
+    def test_a_wrong_version_number_does_not_match(self) -> None:
+        assert not fuzzy_match("They shipped GPT-3.5", ["GPT-4"]).matched
+
+    def test_a_wrong_year_does_not_match(self) -> None:
+        assert not fuzzy_match("it fell in 1987", ["it fell in 1989"]).matched
+
+    def test_names_without_digits_stay_fuzzy(self) -> None:
+        assert fuzzy_match("Geoffrey Hintno", ["Geoffrey Hinton"]).matched
+
+    def test_a_typo_around_a_correct_number_still_matches(self) -> None:
+        assert fuzzy_match("Apolo 11", ["Apollo 11"]).matched
+
+    def test_every_digit_run_must_be_present(self) -> None:
+        assert not fuzzy_match("17 November 2024", ["17 November 2023"]).matched
+
+
 class TestRefusalDetection:
     @pytest.mark.parametrize(
         "response",

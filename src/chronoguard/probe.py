@@ -81,10 +81,15 @@ REFUSAL_MARKERS = (
 
 
 def normalize(text: str) -> str:
-    """Lowercase, drop separators inside numbers, collapse the rest to spaces."""
+    """Lowercase, drop thousands separators, collapse the rest to spaces.
+
+    Only commas come out of numbers. Stripping spaces too would merge
+    "17 2023" into "172023", making a date's two numbers look like one and
+    defeating the exact-digit rule in fuzzy_match.
+    """
     text = text.lower()
     text = re.sub(r"[‐-―]", "-", text)
-    text = re.sub(r"(?<=\d)[, \s](?=\d)", "", text)
+    text = re.sub(r"(?<=\d),(?=\d)", "", text)
     text = re.sub(r"[^a-z0-9.\-]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -148,6 +153,10 @@ def exact_match(response: str, variants: list[str]) -> MatchOutcome:
     return MatchOutcome(matched=False, method="none")
 
 
+def _digit_runs(text: str) -> set[str]:
+    return set(re.findall(r"\d+", text))
+
+
 def fuzzy_match(
     response: str, variants: list[str], threshold: float = DEFAULT_FUZZY_THRESHOLD
 ) -> MatchOutcome:
@@ -155,6 +164,12 @@ def fuzzy_match(
 
     Slides a window the length of the expected answer across the response, so a
     long reply doesn't dilute the score the way whole-string similarity would.
+
+    Numbers inside a variant are matched exactly, never fuzzily. "November 17"
+    against "November 13" scores 0.91 on characters and is a different fact, and
+    the same trap catches prices, quantities and model version numbers. If a
+    variant carries digits, every one of its digit runs has to appear in the
+    window before the ratio is even considered.
     """
     tokens = normalize(response).split()
     best_score = 0.0
@@ -164,11 +179,14 @@ def fuzzy_match(
         expected = normalize(variant)
         if not expected:
             continue
+        required = _digit_runs(expected)
         width = len(expected.split())
         windows = [
             " ".join(tokens[i : i + width]) for i in range(max(len(tokens) - width + 1, 1))
         ]
         for window in windows or [""]:
+            if required and not required <= _digit_runs(window):
+                continue
             score = SequenceMatcher(None, expected, window).ratio()
             if score > best_score:
                 best_score, best_text = score, variant
