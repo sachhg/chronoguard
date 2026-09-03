@@ -74,8 +74,26 @@ Read both numbers. Leakage on its own is ambiguous:
 - High leakage: the model knows the period. No amount of filtering changes that.
 
 `cutoff risk` is a separate, weaker signal from the cutoff table. It's a prior,
-not evidence. If it says `high` but the probe found nothing, believe the probe
-and consider correcting the table.
+not evidence.
+
+The two disagreeing is common on small models, and the report keeps both rather
+than collapsing them. Measured at `as_of=2023-06-01`:
+
+| Model | Leakage | Controls | Cutoff risk |
+| --- | --- | --- | --- |
+| `gemma3:4b` | 2/8 (25%) | 6/6 | high |
+| `qwen3:4b` | 1/8 (12%) | 6/6 | high |
+
+qwen3 looks cleaner, but its wrong answers give it away: asked about the 2024
+physics Nobel it names the 2023 laureates, and asked about the 2024 Turing Award
+it names the 2018 winners. It has clearly seen 2024. It just recalls specific
+award winners badly at 4B.
+
+So a low leakage score is evidence about *those facts*, not proof of an early
+cutoff. The control group catches a model that can't answer anything; it doesn't
+catch one that handles easy old facts and fluffs recent ones, because controls
+skew older by construction. Bigger models make the probe more informative,
+because a miss is more likely to be real ignorance than a recall failure.
 
 ### Claims
 
@@ -109,6 +127,12 @@ score alongside your result so readers can discount it.
 
 **Unknown, from failed controls.** The model is too weak to interpret. Use a
 bigger one, or check whether your probe cases are unreasonably hard.
+
+**A run that times out.** `OllamaTimeout` means the server is up and the model
+is slow, not that anything is broken. Reasoning models spend a long time
+thinking: a single qwen3:4b claim classification on a long evidence block can
+exceed three minutes. Cap the work with `--max-future`, `--max-control` and
+`--max-claims`, or use a non-reasoning model as the judge.
 
 ## Diffing runs
 

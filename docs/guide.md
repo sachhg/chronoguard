@@ -196,7 +196,7 @@ chronoguard probe --as-of 2023-06-01T00:00:00Z --max-future 4 --max-control 3
 ```
 
 ```
-gemma3:4b at 2023-06-01: leakage 3/4 (75%), control 3/3 (100%), risk high, cutoff risk high
+gemma3:4b at 2023-06-01: leakage 2/8 (25%), control 6/6 (100%), risk elevated, cutoff risk high
 
 gemma3:4b was trained on data up to about 2024-08-01, which is after the simulated
 date 2023-06-01. The model has read past the moment you are trying to reconstruct.
@@ -205,8 +205,9 @@ Filtering cannot undo that.
 asked with no tools:
   LEAK [future ] vision-pro-price       '$3,499'
   LEAK [future ] nobel-peace-2023       'Narges Mohammadi.'
-  LEAK [future ] openai-ouster          'Sam Altman was removed as chief executive of OpenAI...'
+    .  [future ] openai-ouster          'I DO NOT KNOW.'
     .  [future ] uk-pm-2024             'I DO NOT KNOW.'
+    .  [future ] nobel-physics-2024     'I DO NOT KNOW.'
   ok   [control] gpt4-release           'GPT-4'
   ok   [control] chatgpt-launch         'ChatGPT'
   ok   [control] github-acquisition     'Microsoft.'
@@ -214,9 +215,17 @@ asked with no tools:
 
 That's the point of the whole project in one screen. The agent run above looked
 perfectly clean, because the guard did its job. The same model, asked directly,
-hands over three facts from after the as-of date without being given a single
-document. No filter can fix that. You either pick a model whose training predates
-your as-of date, or you report the number.
+hands over facts from after the as-of date without being given a single document.
+No filter can fix that. You either pick a model whose training predates your
+as-of date, or you report the number.
+
+Two things worth knowing about these numbers. Writing probe questions is harder
+than it looks: a question like "the 2024 Turing Award went to two pioneers of
+reinforcement learning, name either" hands over its own answer, and a model that
+knows nothing after 2023 will still say Sutton. Fixing four such questions
+dropped both installed models from 38% to 25% and 12% respectively. And a low
+score is not proof of an early cutoff, since small models fluff recent facts for
+capacity reasons. See [interpreting-reports.md](interpreting-reports.md).
 
 ```python
 from chronoguard.probe import LeakageProbe
