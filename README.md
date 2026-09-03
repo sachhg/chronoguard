@@ -140,6 +140,8 @@ report.summary()          # the JSON summary
 - **[examples/](examples/)** has a worked end-to-end scenario on your own corpus.
 - **[docs/kb/](docs/kb/INDEX.md)** is a knowledge base for agents working in this
   repo: atomic notes, cross-linked, loadable a few at a time.
+- **[docs/releasing.md](docs/releasing.md)** covers cutting a version and
+  publishing.
 
 ## Tests
 

@@ -1,0 +1,68 @@
+name: publish
+
+# Manual only, on purpose. Publishing a version to PyPI cannot be undone: that
+# version number is burned even if you delete the release, and the project name
+# is claimed permanently. Nothing here should fire off a tag push by accident.
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Where to publish
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Trusted publishing. No API token is stored anywhere; PyPI verifies the
+      # workflow's OIDC identity instead. Configure the publisher first, see
+      # docs/releasing.md.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and test before shipping anything
+        run: |
+          pip install -e ".[dev]" build twine
+          pytest -m "not integration" -q
+
+      - name: Build
+        run: python -m build
+
+      - name: Check metadata
+        run: twine check dist/*
+
+      - name: Version matches the checked-out ref
+        # A tag that disagrees with the packaged version ships the wrong thing
+        # under the right name, which is worse than failing here.
+        run: |
+          python - <<'PY'
+          import glob, os, re, sys
+          ref = os.environ.get("GITHUB_REF_NAME", "")
+          wheel = glob.glob("dist/*.whl")[0]
+          version = re.search(r"chronoguard-([^-]+)-", wheel).group(1)
+          print(f"packaged version {version}, ref {ref}")
+          if ref.startswith("v") and ref[1:] != version:
+              sys.exit(f"tag {ref} does not match packaged version {version}")
+          PY
+
+      - name: Publish to TestPyPI
+        if: inputs.repository == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: inputs.repository == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
