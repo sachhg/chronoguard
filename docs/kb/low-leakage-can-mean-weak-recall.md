@@ -17,6 +17,16 @@ data well past that date, and its wrong answers give it away. Asked about the
 So it is not that qwen3 has never seen 2024. It is that a 4B model recalls
 specific award winners badly.
 
+The clearest demonstration is the two models side by side. gemma3:4b carries the
+*earlier* cutoff in the table (2024-08 against qwen3's 2024-12) and recalls
+*more*: both know the June 2023 Vision Pro price, but only gemma3 knows the
+October 2023 Nobel Peace Prize. If leakage tracked cutoffs, that ordering would
+be the other way round.
+
+Do not "correct" the cutoff table from a leakage score. A model failing to
+recall a fact is not evidence its training stopped earlier, and the table is
+documented as a prior for exactly this reason.
+
 The control group catches a model that cannot answer anything, which is a
 different failure. It does not catch a model that handles easy old facts and
 fluffs recent ones, because controls skew older by construction.
