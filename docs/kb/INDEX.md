@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-46 notes.
+47 notes.
 
 ## concept
 
@@ -58,6 +58,7 @@ Shapes and interfaces other code depends on.
 - [numbers-are-matched-exactly](numbers-are-matched-exactly.md) fuzzy_match requires every digit run in a variant to appear, because one digit apart is a different fact.
 - [probe-case-boundary-matches-the-guard](probe-case-boundary-matches-the-guard.md) knowable_from >= as_of makes a case a probe, matching published_at >= as_of being a violation.
 - [scenario-summary-schema](scenario-summary-schema.md) Top-level keys of ScenarioReport.summary() and what consumers can rely on.
+- [slow-model-is-not-an-absent-server](slow-model-is-not-an-absent-server.md) OllamaTimeout separates a thinking model running long from a server that is actually down, because the advice differs.
 
 ## procedure
 

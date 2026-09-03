@@ -96,7 +96,7 @@ Everything in `AgentConfig` except `temperature` and `max_format_retries`, plus:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `judge_model` | `None` | Model for claim classification. Reuses the agent model when unset. |
+| `judge_model` | `None` | Model for claim classification. Reuses the agent model when unset. Prefer a fast non-reasoning model here: classification is mechanical, and a thinking model can spend minutes per claim. |
 | `policy` | `strict` | Passed to the guard built for the default fixture tools. |
 | `probe` | `True` | Run the parametric leakage probe. Skipping drops the verdict to `unknown`. |
 | `max_future_cases` | `None` | Cap on probe questions. Capping keeps the cases nearest the as-of date, where leakage shows. |
@@ -179,3 +179,14 @@ an `as_of` without an offset.
 `OLLAMA_HOST` sets the default Ollama host. The scheme is optional, so
 `localhost:11434` and `http://localhost:11434` both work. Defaults to
 `http://localhost:11434`.
+
+## Timeouts
+
+`OllamaClient(timeout=...)` defaults to 600 seconds per request. That is
+deliberately generous: reasoning models spend a long time thinking, and a single
+claim classification against qwen3:4b on a long evidence block can run past
+three minutes.
+
+A request that exceeds the limit raises `OllamaTimeout`, which subclasses
+`OllamaUnavailable` but means something different, so the CLI does not tell you
+to start a server that is already running.

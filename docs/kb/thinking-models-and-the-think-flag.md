@@ -22,7 +22,17 @@ Measured on qwen3:4b against `/api/chat`:
 So the client deliberately does not send `think`. `ChatResponse` ignores the
 `thinking` field, which is what keeps `content` clean.
 
-The cost is wall clock. A full probe against a reasoning model takes minutes,
-not seconds. Cap it with `--max-future` and `--max-control` when iterating, and
-expect the integration suite to be slow whenever a thinking model is the one
-discovered by `pick_model`.
+The cost is wall clock, and it is worse than it sounds. A single qwen3:4b claim
+classification on a long evidence block runs past three minutes, which is what
+blew through the old 180 second client timeout and produced a misleading "start
+ollama serve" message. See [[slow-model-is-not-an-absent-server]].
+
+Practical guidance:
+
+- **Do not use a reasoning model as the claim judge.** Classification is
+  mechanical: pick a label, name the documents. `--judge gemma3:4b` finishes in
+  seconds and scores 10/11 on the fixtures. A thinking model spends minutes per
+  claim to reach the same kind of answer.
+- Cap probe runs with `--max-future` and `--max-control` while iterating.
+- Expect the integration suite to be slow whenever `pick_model` lands on a
+  thinking model.

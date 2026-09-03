@@ -1,5 +1,5 @@
 {
-  "note_count": 46,
+  "note_count": 47,
   "types": [
     "concept",
     "contract",
@@ -622,7 +622,8 @@
         "integration-tests-skip-never-fail",
         "test-that-the-raw-tool-leaks-first",
         "test-doubles-matching-whole-prompts",
-        "thinking-models-and-the-think-flag"
+        "thinking-models-and-the-think-flag",
+        "slow-model-is-not-an-absent-server"
       ],
       "source": "pyproject.toml"
     },
@@ -641,6 +642,23 @@
         "audit-log-is-the-reporting-side"
       ],
       "source": "src/chronoguard/report.py"
+    },
+    {
+      "id": "slow-model-is-not-an-absent-server",
+      "path": "slow-model-is-not-an-absent-server.md",
+      "title": "A slow model is not an absent server",
+      "type": "contract",
+      "description": "OllamaTimeout separates a thinking model running long from a server that is actually down, because the advice differs.",
+      "tags": [
+        "ollama",
+        "cli",
+        "errors"
+      ],
+      "links": [
+        "thinking-models-and-the-think-flag",
+        "run-the-test-suites"
+      ],
+      "source": "src/chronoguard/ollama.py"
     },
     {
       "id": "test-doubles-matching-whole-prompts",
