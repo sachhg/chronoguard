@@ -1,5 +1,5 @@
 {
-  "note_count": 44,
+  "note_count": 45,
   "types": [
     "concept",
     "contract",
@@ -206,7 +206,8 @@
       "links": [
         "add-a-probe-case",
         "probe-cases-must-be-real",
-        "numbers-are-matched-exactly"
+        "numbers-are-matched-exactly",
+        "thinking-models-and-the-think-flag"
       ],
       "source": "src/chronoguard/probe.py"
     },
@@ -600,7 +601,8 @@
       "links": [
         "integration-tests-skip-never-fail",
         "test-that-the-raw-tool-leaks-first",
-        "test-doubles-matching-whole-prompts"
+        "test-doubles-matching-whole-prompts",
+        "thinking-models-and-the-think-flag"
       ],
       "source": "pyproject.toml"
     },
@@ -651,6 +653,25 @@
         "fictional-fixture-scenario"
       ],
       "source": "tests/test_fixture_tools.py"
+    },
+    {
+      "id": "thinking-models-and-the-think-flag",
+      "path": "thinking-models-and-the-think-flag.md",
+      "title": "Leave thinking alone on reasoning models",
+      "type": "pitfall",
+      "description": "Ollama's think:false merges reasoning into content and breaks scoring; the default already separates them.",
+      "tags": [
+        "ollama",
+        "probe",
+        "claims",
+        "prompting"
+      ],
+      "links": [
+        "claim-and-answer-matching",
+        "run-the-test-suites",
+        "containment-vs-measurement"
+      ],
+      "source": "src/chronoguard/ollama.py"
     },
     {
       "id": "tune-a-judge-prompt",

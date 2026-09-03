@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-44 notes.
+45 notes.
 
 ## concept
 
@@ -82,6 +82,7 @@ Traps, and bugs that already happened once.
 - [preamble-filters-eat-real-claims](preamble-filters-eat-real-claims.md) A preamble regex listing 'claims?|answer' silently dropped genuine claims starting with those words.
 - [test-doubles-matching-whole-prompts](test-doubles-matching-whole-prompts.md) Few-shot examples in a prompt will match a fake client's keyword routing.
 - [test-that-the-raw-tool-leaks-first](test-that-the-raw-tool-leaks-first.md) A leak test passes trivially if the tool never returned the future in the first place.
+- [thinking-models-and-the-think-flag](thinking-models-and-the-think-flag.md) Ollama's think:false merges reasoning into content and breaks scoring; the default already separates them.
 - [typer-collapses-single-command-apps](typer-collapses-single-command-apps.md) With one command and no @app.callback(), Typer drops the subcommand name.
 
 ## map

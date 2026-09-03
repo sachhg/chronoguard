@@ -4,7 +4,7 @@ title: How answers are matched: squash, then fuzzy, then judge
 type: contract
 description: Matching rules used by the probe, including the short-answer token rule.
 tags: [probe, scoring]
-links: [add-a-probe-case, probe-cases-must-be-real, numbers-are-matched-exactly]
+links: [add-a-probe-case, probe-cases-must-be-real, numbers-are-matched-exactly, thinking-models-and-the-think-flag]
 source: src/chronoguard/probe.py
 ---
 `score_response` tries three things in order and stops at the first hit.
