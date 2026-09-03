@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-41 notes.
+42 notes.
 
 ## concept
 
@@ -75,6 +75,7 @@ Traps, and bugs that already happened once.
 - [circular-import-via-package-root](circular-import-via-package-root.md) report.py read __version__ from chronoguard/__init__, which imports report. Use _version.py.
 - [falsy-zero-limits](falsy-zero-limits.md) `if max_control` treated an explicit 0 as 'no limit'. Use `is not None`.
 - [integration-tests-skip-never-fail](integration-tests-skip-never-fail.md) Fixtures in conftest.py skip with an actionable message; keep new model-backed tests behind them.
+- [measure-prompt-changes-on-a-set](measure-prompt-changes-on-a-set.md) Two prompt "fixes" driven by a single misclassified claim both made the judge worse overall.
 - [ordered-procedure-beats-a-menu](ordered-procedure-beats-a-menu.md) Three parallel label options made gemma3:4b pick UNSUPPORTED for everything; ordering fixed it.
 - [preamble-filters-eat-real-claims](preamble-filters-eat-real-claims.md) A preamble regex listing 'claims?|answer' silently dropped genuine claims starting with those words.
 - [test-doubles-matching-whole-prompts](test-doubles-matching-whole-prompts.md) Few-shot examples in a prompt will match a fake client's keyword routing.

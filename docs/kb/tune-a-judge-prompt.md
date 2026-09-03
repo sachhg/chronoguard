@@ -4,7 +4,7 @@ title: How to tune a judge prompt against fixtures
 type: procedure
 description: Measure against known labels before and after; do not guess at prompt changes.
 tags: [claims, prompting, howto]
-links: [judge-asked-observable-question, ordered-procedure-beats-a-menu]
+links: [judge-asked-observable-question, ordered-procedure-beats-a-menu, measure-prompt-changes-on-a-set]
 source: tests/claim_fixtures.py
 ---
 `tests/claim_fixtures.py` holds answer-plus-evidence fixtures whose correct
@@ -27,4 +27,5 @@ for text, expected, _ in LABELLED_CLAIMS:
 
 Record the score before you change anything, change one thing, score again. The
 current prompt went 3/6, then 5/6, then 6/6 on gemma3:4b that way. See
-[[ordered-procedure-beats-a-menu]] for what actually moved it.
+[[ordered-procedure-beats-a-menu]] for what actually moved it, and
+[[measure-prompt-changes-on-a-set]] for what happens when you skip the scoring.

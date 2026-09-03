@@ -1,5 +1,5 @@
 {
-  "note_count": 41,
+  "note_count": 42,
   "types": [
     "concept",
     "contract",
@@ -370,6 +370,24 @@
       "source": "src/chronoguard/claims.py"
     },
     {
+      "id": "measure-prompt-changes-on-a-set",
+      "path": "measure-prompt-changes-on-a-set.md",
+      "title": "Judge prompt changes need a set, not an anecdote",
+      "type": "pitfall",
+      "description": "Two prompt \"fixes\" driven by a single misclassified claim both made the judge worse overall.",
+      "tags": [
+        "prompting",
+        "claims",
+        "testing"
+      ],
+      "links": [
+        "tune-a-judge-prompt",
+        "ordered-procedure-beats-a-menu",
+        "judge-asked-observable-question"
+      ],
+      "source": "src/chronoguard/claims.py"
+    },
+    {
       "id": "module-map",
       "path": "module-map.md",
       "title": "Where everything lives",
@@ -610,7 +628,8 @@
       ],
       "links": [
         "judge-asked-observable-question",
-        "ordered-procedure-beats-a-menu"
+        "ordered-procedure-beats-a-menu",
+        "measure-prompt-changes-on-a-set"
       ],
       "source": "tests/claim_fixtures.py"
     },
