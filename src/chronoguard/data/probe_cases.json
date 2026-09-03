@@ -1,5 +1,5 @@
 {
-  "note": "Post-cutoff fact probes. Each case is a question whose answer only became knowable at 'knowable_from'. A case is a leakage probe for any as_of at or before that instant, and a control for any as_of after it. Deliberately generic: no sport, no vertical. Add your own, the format is stable.",
+  "note": "Post-cutoff fact probes. Each case is a question whose answer only became knowable at 'knowable_from'. A case is a leakage probe for any as_of at or before that instant, and a control for any as_of after it. Deliberately generic: no sport, no vertical. Add your own, the format is stable. Important: a probe question must not contain enough information to guess its own answer, or a model with no post-cutoff knowledge scores as leaking.",
   "cases": [
     {
       "id": "chatgpt-launch",
@@ -13,7 +13,9 @@
       "id": "gpt4-release",
       "question": "Which OpenAI model was released on 14 March 2023 as the successor to GPT-3.5?",
       "answer": "GPT-4",
-      "aliases": ["GPT4"],
+      "aliases": [
+        "GPT4"
+      ],
       "knowable_from": "2023-03-14T00:00:00Z",
       "topic": "technology"
     },
@@ -21,7 +23,9 @@
       "id": "vision-pro-price",
       "question": "What US list price did Apple announce for the Vision Pro headset when it was unveiled in June 2023? Give the number.",
       "answer": "$3,499",
-      "aliases": ["3499"],
+      "aliases": [
+        "3499"
+      ],
       "knowable_from": "2023-06-05T00:00:00Z",
       "topic": "technology"
     },
@@ -29,15 +33,22 @@
       "id": "nobel-peace-2023",
       "question": "Who was awarded the 2023 Nobel Peace Prize?",
       "answer": "Narges Mohammadi",
-      "aliases": ["Mohammadi"],
+      "aliases": [
+        "Mohammadi"
+      ],
       "knowable_from": "2023-10-06T00:00:00Z",
       "topic": "world events"
     },
     {
       "id": "openai-ouster",
-      "question": "Who was removed as chief executive of OpenAI on 17 November 2023 and reinstated within a week?",
-      "answer": "Sam Altman",
-      "aliases": ["Altman"],
+      "question": "In November 2023 OpenAI's board removed its chief executive, who was reinstated within a week. On what date was he removed?",
+      "answer": "17 November 2023",
+      "aliases": [
+        "November 17",
+        "17 November",
+        "2023-11-17",
+        "Nov 17"
+      ],
       "knowable_from": "2023-11-17T00:00:00Z",
       "topic": "technology"
     },
@@ -45,23 +56,35 @@
       "id": "uk-pm-2024",
       "question": "Who became Prime Minister of the United Kingdom after the July 2024 general election?",
       "answer": "Keir Starmer",
-      "aliases": ["Starmer"],
+      "aliases": [
+        "Starmer"
+      ],
       "knowable_from": "2024-07-05T00:00:00Z",
       "topic": "world events"
     },
     {
       "id": "nobel-physics-2024",
-      "question": "The 2024 Nobel Prize in Physics went to two researchers for foundational work on artificial neural networks. Name either of them.",
+      "question": "Who was awarded the 2024 Nobel Prize in Physics?",
       "answer": "Geoffrey Hinton",
-      "aliases": ["Hinton", "John Hopfield", "Hopfield"],
+      "aliases": [
+        "Hinton",
+        "John Hopfield",
+        "Hopfield"
+      ],
       "knowable_from": "2024-10-08T00:00:00Z",
       "topic": "science"
     },
     {
       "id": "nobel-chemistry-2024",
-      "question": "Which DeepMind chief executive shared the 2024 Nobel Prize in Chemistry?",
-      "answer": "Demis Hassabis",
-      "aliases": ["Hassabis"],
+      "question": "Who was awarded the 2024 Nobel Prize in Chemistry?",
+      "answer": "David Baker",
+      "aliases": [
+        "Baker",
+        "Demis Hassabis",
+        "Hassabis",
+        "John Jumper",
+        "Jumper"
+      ],
       "knowable_from": "2024-10-09T00:00:00Z",
       "topic": "science"
     },
@@ -75,9 +98,13 @@
     },
     {
       "id": "turing-award-2024",
-      "question": "The 2024 Turing Award went to two pioneers of reinforcement learning. Name either of them.",
+      "question": "Who was awarded the 2024 A.M. Turing Award, announced in March 2025?",
       "answer": "Richard Sutton",
-      "aliases": ["Sutton", "Andrew Barto", "Barto"],
+      "aliases": [
+        "Sutton",
+        "Andrew Barto",
+        "Barto"
+      ],
       "knowable_from": "2025-03-05T00:00:00Z",
       "topic": "science"
     },
