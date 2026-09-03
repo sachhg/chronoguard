@@ -144,3 +144,50 @@ class ScriptedJudgeClient:
             if line.startswith("Claim: "):
                 return line[len("Claim: ") :]
         return prompt
+
+
+class ScenarioClient:
+    """One client covering all three stages of an end-to-end scenario.
+
+    Dispatches on the prompt shape: the agent loop sends a system message
+    naming the current date, the probe sends its own system message, and the
+    claim judge sends a bare user message.
+    """
+
+    def __init__(
+        self,
+        agent_replies: list[dict[str, Any]],
+        probe_answers: dict[str, str] | None = None,
+        claims: list[str] | None = None,
+        verdicts: dict[str, str] | None = None,
+        *,
+        tools: bool = False,
+        default_verdict: str = "GROUNDED | 1 | document 1 says so",
+    ) -> None:
+        self.agent = ScriptedClient(agent_replies, tools=tools)
+        self.probe = CannedProbeClient(probe_answers)
+        self.judge = ScriptedJudgeClient(claims, verdicts, default_verdict=default_verdict)
+        self.stages: list[str] = []
+
+    def supports_tools(self, model: str) -> bool:
+        return self.agent.supports_tools(model)
+
+    def pick_model(self, *, prefer_tools: bool = False) -> str:
+        return "scripted-model"
+
+    def chat(self, model: str, messages: Any, *, tools: Any = None, **kwargs: Any) -> ChatResponse:
+        system = ""
+        for message in messages:
+            role = message["role"] if isinstance(message, dict) else message.role
+            if role == "system":
+                system = message["content"] if isinstance(message, dict) else message.content
+                break
+
+        if "The current date is" in system:
+            self.stages.append("agent")
+            return self.agent.chat(model, messages, tools=tools, **kwargs)
+        if "Answer the question as directly" in system:
+            self.stages.append("probe")
+            return self.probe.chat(model, messages, **kwargs)
+        self.stages.append("judge")
+        return self.judge.chat(model, messages, **kwargs)
