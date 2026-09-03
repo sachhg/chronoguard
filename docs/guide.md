@@ -284,7 +284,12 @@ A couple of notes:
   denominator.
 - **Judge quality depends on the judge model.** `tests/claim_fixtures.py` holds
   answer-plus-evidence fixtures with known correct labels, and the integration
-  suite grades a real model against them. `gemma3:4b` scores 6/6 on those.
+  suite grades a real model against them. `gemma3:4b` scores 6/6 on those, and
+  10/11 on a wider set that adds negations and absence claims, with no false
+  leaks and no missed leaks. Negation is where it is weakest: a claim like "the
+  documents do not give a price" is occasionally filed as a leak when it asserts
+  nothing. Check your own judge model against the fixtures before trusting the
+  labels, and see `docs/kb/tune-a-judge-prompt.md` for how.
 
 ## Putting it together
 

@@ -110,7 +110,7 @@ Modules: `chronoguard/report.py`, CLI command
   JSON summary: records filtered, probe score, flagged claims with reasons.
 - Tests for report content and formatting.
 
-## Phase 7: docs, example, polish
+## Phase 7: docs, example, polish (done)
 
 - **`docs/kb/`, a knowledge base in memory-engineering style.** Atomic,
   addressable notes: one idea per file, frontmatter carrying a stable id, a
