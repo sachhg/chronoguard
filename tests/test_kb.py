@@ -31,6 +31,9 @@ NOTES = load_notes(KB)
 IDS = {n["id"] for n in NOTES}
 WIKILINK = re.compile(r"\[\[([a-z0-9-]+)\]\]")
 
+# By codepoint, so this file does not trip its own check.
+EM_DASH = chr(0x2014)
+
 
 def body_of(note: dict) -> str:
     text = (KB / note["path"]).read_text(encoding="utf-8")
@@ -136,7 +139,7 @@ class TestHouseStyle:
     @pytest.mark.parametrize("note", NOTES, ids=lambda n: n["id"])
     def test_no_em_dashes(self, note: dict) -> None:
         # CLAUDE.md bans them everywhere, and the kb is not an exception.
-        assert "—" not in (KB / note["path"]).read_text(encoding="utf-8")
+        assert EM_DASH not in (KB / note["path"]).read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("note", NOTES, ids=lambda n: n["id"])
     def test_no_llm_filler_vocabulary(self, note: dict) -> None:
