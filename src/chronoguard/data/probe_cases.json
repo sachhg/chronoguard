@@ -207,6 +207,17 @@
       ],
       "knowable_from": "2026-07-20T00:00:00Z",
       "topic": "world events"
+    },
+    {
+      "id": "us-national-debt082026",
+      "question": "According to the U.s. Congress Joint Economic Committee debt dashboard, what was the gross national debt per household as of August 5, 2026? Give the number.",
+      "answer": "USD$295,494",
+      "aliases": [
+        "$295,494",
+        "295494"
+      ],
+      "knowable_from": "2026-08-07T00:00:00Z",
+      "topic": "world events"
     }
   ]
 }
