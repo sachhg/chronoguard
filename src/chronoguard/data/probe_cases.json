@@ -139,6 +139,85 @@
       "aliases": [],
       "knowable_from": "2018-06-04T00:00:00Z",
       "topic": "technology"
+    },
+    {
+      "id": "brk-newceo2026",
+      "question": "When did Greg Abel become the CEO of Berkshire Hathaway?",
+      "answer": "January 1, 2026",
+      "aliases": [
+        "January 1, 2026", 
+        "Jan 1, 2026", 
+        "January 1st, 2026", 
+        "Jan 1st, 2026", 
+        "01/01/2026", 
+        "2026-01-01", 
+        "01.01.2026", 
+        "New Year's Day, 2026", 
+        "The first of January, 2026"
+      ],
+      "knowable_from": "2026-01-01T00:00:00Z",
+      "topic": "business"
+    },
+    {
+      "id": "apple-newceo2026",
+      "question": "When did Tim Cook step down as CEO of Apple?",
+      "answer": "September 1, 2026",
+      "aliases": [
+        "September 1, 2026", 
+        "Sep 1, 2026", 
+        "Sept 1, 2026", 
+        "September 1st, 2026", 
+        "Sep 1st, 2026", 
+        "09/01/2026", 
+        "2026-09-01", 
+        "09.01.2026", 
+        "The first of September, 2026"
+      ],
+      "knowable_from": "2026-04-20T00:00:00Z",
+      "topic": "business"
+    },
+    {
+      "id": "chinanepel-climateevent",
+      "question": "Where did the fatal flash floods and debris flows happen on August 26, 2026?",
+      "answer": "China-Nepal border",
+      "aliases": [
+        "Himalayas",
+        "China and Nepal border"
+      ],
+      "knowable_from": "2026-08-26T00:00:00Z",
+      "topic": "climate events"
+    },
+        {
+      "id": "google-ai2026",
+      "question": "What new AI model did Google release in September 2026?",
+      "answer": "Gemini 3.8 Flash",
+      "aliases": [
+        "gemini-3.8-flash"
+      ],
+      "knowable_from": "2026-09-02T00:00:00Z",
+      "topic": "technology"
+    },
+    {
+      "id": "uk-pm-2026",
+      "question": "Who became Prime Minister of the United Kingdom after the July 2026 general election?",
+      "answer": "Andy Burnham",
+      "aliases": [
+        "Burnham",
+        "The Rt Hon Andy Burnham MP"
+      ],
+      "knowable_from": "2026-07-20T00:00:00Z",
+      "topic": "world events"
+    },
+    {
+      "id": "us-national-debt082026",
+      "question": "According to the U.s. Congress Joint Economic Committee debt dashboard, what was the gross national debt per household as of August 5, 2026? Give the number.",
+      "answer": "USD$295,494",
+      "aliases": [
+        "$295,494",
+        "295494"
+      ],
+      "knowable_from": "2026-08-07T00:00:00Z",
+      "topic": "world events"
     }
   ]
 }
