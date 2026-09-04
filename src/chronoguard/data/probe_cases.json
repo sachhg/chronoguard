@@ -188,7 +188,7 @@
       "topic": "climate events"
     },
         {
-      "id": "github-acquisition",
+      "id": "google-ai2026",
       "question": "What new AI model did Google release in September 2026?",
       "answer": "Gemini 3.8 Flash",
       "aliases": [
@@ -219,7 +219,5 @@
       "knowable_from": "2026-08-07T00:00:00Z",
       "topic": "world events"
     }
-  ]
-}
   ]
 }
