@@ -75,11 +75,14 @@ from chronoguard.backends import (
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.preflight import CorpusReport, inspect_corpus, load_rows
 from chronoguard.probe import (
+    CaseIssue,
+    CaseSetReport,
     CutoffRisk,
     LeakageProbe,
     ModelCutoffs,
     ProbeCase,
     ProbeReport,
+    describe_cases,
     load_model_cutoffs,
     load_probe_cases,
 )
@@ -92,6 +95,8 @@ __all__ = [
     "AuditLog",
     "BackendTimeout",
     "BackendUnavailable",
+    "CaseIssue",
+    "CaseSetReport",
     "ChatBackend",
     "Claim",
     "ClaimClassifier",
@@ -122,6 +127,7 @@ __all__ = [
     "Verdict",
     "__version__",
     "classify_run",
+    "describe_cases",
     "guard_records",
     "guard_tool",
     "guarded_tool",

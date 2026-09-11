@@ -172,6 +172,9 @@ thing that changes behaviour:
 # does my corpus still straddle the as-of date? no model needed
 chronoguard check corpus.json --as-of 2024-03-01T00:00:00Z --fail-on error
 
+# do any probe questions still apply at this date? also no model
+chronoguard cases --as-of 2024-03-01T00:00:00Z --fail-on error
+
 # did this change make the run leakier?
 chronoguard report "$TASK" --fail-on elevated --json-out summary.json
 ```

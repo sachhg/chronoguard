@@ -12,7 +12,10 @@ from pathlib import Path
 
 import pytest
 
+from chronoguard.fixtures import FIXTURE_AS_OF
 from chronoguard.probe import (
+    _giveaways,
+    describe_cases,
     CutoffRisk,
     LeakageProbe,
     ModelCutoffs,
@@ -493,3 +496,148 @@ class TestLeakageProbeRun:
         )
         assert result.future_outcomes == []
         assert result.risk_level == "inconclusive"
+
+
+class TestDescribeCases:
+    """Coverage and validation for a case set, with no model in the loop."""
+
+    def case(self, case_id: str, knowable: str, question: str = "q?", answer: str = "zyzzyva"):
+        return ProbeCase(id=case_id, question=question, answer=answer, knowable_from=knowable)
+
+    def spread(self) -> list[ProbeCase]:
+        return [
+            self.case("old-1", "2020-01-01T00:00:00Z"),
+            self.case("old-2", "2021-01-01T00:00:00Z"),
+            self.case("new-1", "2024-01-01T00:00:00Z"),
+            self.case("new-2", "2025-01-01T00:00:00Z"),
+            self.case("new-3", "2026-01-01T00:00:00Z"),
+        ]
+
+    def messages(self, report) -> str:
+        return " ".join(i.message for i in report.issues)
+
+    def test_it_splits_future_from_control(self) -> None:
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
+        assert report.future == 3
+        assert report.control == 2
+
+    def test_the_split_moves_with_the_as_of(self) -> None:
+        assert describe_cases(self.spread(), "2025-06-01T00:00:00Z").future == 1
+
+    def test_the_boundary_matches_the_guard(self) -> None:
+        # knowable_from == as_of counts as future, the same way published_at ==
+        # as_of counts as a violation.
+        report = describe_cases([self.case("x", "2024-01-01T00:00:00Z")], "2024-01-01T00:00:00Z")
+        assert report.future == 1
+
+    def test_a_naive_as_of_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="timezone-aware"):
+            describe_cases(self.spread(), "2023-01-01")
+
+    def test_topics_are_counted(self) -> None:
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
+        assert report.topics == {"general": 5}
+
+    def test_nearest_future_cases_are_listed_closest_first(self) -> None:
+        # Matches how a capped run selects them.
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
+        assert report.nearest_future == ["new-1", "new-2", "new-3"]
+
+    def test_a_healthy_set_is_usable(self) -> None:
+        assert describe_cases(self.spread(), "2023-01-01T00:00:00Z").usable is True
+
+    def test_no_future_cases_is_an_error(self) -> None:
+        # The failure that reads like success: zero leakage because nothing was
+        # asked, not because the model was blinded.
+        report = describe_cases(self.spread(), "2027-01-01T00:00:00Z")
+        assert report.errors
+        assert report.usable is False
+        assert "would read as blinded when nothing was measured" in self.messages(report)
+
+    def test_no_control_cases_is_an_error(self) -> None:
+        report = describe_cases(self.spread(), "2019-01-01T00:00:00Z")
+        assert report.errors
+        assert "cannot answer, not that it is blinded" in self.messages(report)
+
+    def test_a_thin_future_set_is_a_warning_not_an_error(self) -> None:
+        report = describe_cases(self.spread(), "2025-06-01T00:00:00Z")
+        assert report.errors == []
+        assert "the score is coarse" in self.messages(report)
+
+    def test_an_empty_set_is_an_error(self) -> None:
+        assert describe_cases([], "2023-01-01T00:00:00Z").errors
+
+    def test_duplicate_ids_are_an_error(self) -> None:
+        cases = [*self.spread(), self.case("new-1", "2024-06-01T00:00:00Z")]
+        report = describe_cases(cases, "2023-01-01T00:00:00Z")
+        assert any(i.case_id == "new-1" and i.severity == "error" for i in report.issues)
+        assert "double-count" in self.messages(report)
+
+    def test_an_empty_answer_is_an_error(self) -> None:
+        cases = [*self.spread(), self.case("blank", "2024-06-01T00:00:00Z", answer="  ")]
+        report = describe_cases(cases, "2023-01-01T00:00:00Z")
+        assert any(i.case_id == "blank" and "empty answer" in i.message for i in report.issues)
+
+    def test_the_packaged_set_is_usable_at_the_fixture_date(self) -> None:
+        report = describe_cases(load_probe_cases(), FIXTURE_AS_OF)
+        assert report.usable, report.render()
+
+    def test_the_packaged_set_has_no_giveaways(self) -> None:
+        report = describe_cases(load_probe_cases(), FIXTURE_AS_OF)
+        assert [i for i in report.issues if "spells out" in i.message] == []
+
+    def test_the_note_about_the_limits_of_the_check_is_always_there(self) -> None:
+        # The check is a floor, not a guarantee, and saying so is the point.
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
+        assert any("no automated check catches that" in i.message for i in report.issues)
+
+    def test_the_summary_is_json_serialisable(self) -> None:
+        json.dumps(describe_cases(self.spread(), "2023-01-01T00:00:00Z").summary())
+
+    def test_the_render_names_the_source(self) -> None:
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z", source="mine.json")
+        assert "mine.json" in report.render()
+
+
+class TestGiveawayDetection:
+    """A question that hands over its own answer measures guessing, not leakage."""
+
+    def flagged(self, question: str, answer: str, aliases: list[str] | None = None) -> list[str]:
+        return _giveaways(
+            ProbeCase(
+                id="x",
+                question=question,
+                answer=answer,
+                aliases=aliases or [],
+                knowable_from="2025-01-01T00:00:00Z",
+            )
+        )
+
+    def test_a_name_spelled_out_in_the_question(self) -> None:
+        assert self.flagged("The award went to Richard Sutton. Who won?", "Richard Sutton")
+
+    def test_a_trailing_full_stop_does_not_hide_it(self) -> None:
+        assert self.flagged("Who is Richard Sutton.", "Richard Sutton")
+
+    def test_a_case_difference_does_not_hide_it(self) -> None:
+        assert self.flagged("was it GPT-4 or not?", "gpt4")
+
+    def test_an_alias_counts(self) -> None:
+        assert self.flagged("Did Machado win?", "María Corina Machado", aliases=["Machado"])
+
+    def test_partial_overlap_is_not_a_giveaway(self) -> None:
+        # The discriminating "17" is absent, so the question gives nothing away.
+        assert self.flagged(
+            "In November 2023 the board removed him. On what date?", "17 November 2023"
+        ) == []
+
+    def test_a_short_discriminating_token_is_not_filtered_out(self) -> None:
+        # Dropping tokens under four characters as noise would throw away the
+        # one that decides this.
+        assert self.flagged("Which year, 1988 or another?", "1989") == []
+
+    def test_a_clean_question_is_not_flagged(self) -> None:
+        assert self.flagged("Who was awarded the 2025 Nobel Peace Prize?", "Machado") == []
+
+    def test_scaffolding_words_alone_do_not_trip_it(self) -> None:
+        assert self.flagged("Who won the Nobel Prize in Physics?", "Nobel laureate Smith") == []

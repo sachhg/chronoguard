@@ -47,6 +47,8 @@ from chronoguard.evidence import parse_timestamp
 from chronoguard.ollama import OllamaClient
 
 __all__ = [
+    "CaseIssue",
+    "CaseSetReport",
     "CutoffRisk",
     "LeakageProbe",
     "ModelCutoffs",
@@ -56,6 +58,7 @@ __all__ = [
     "exact_match",
     "fuzzy_match",
     "load_model_cutoffs",
+    "describe_cases",
     "load_probe_cases",
     "normalize",
     "score_response",
@@ -242,6 +245,224 @@ def load_probe_cases(path: str | Path | None = None) -> list[ProbeCase]:
     payload = json.loads(blob)
     cases = payload["cases"] if isinstance(payload, dict) else payload
     return [ProbeCase.model_validate(c) for c in cases]
+
+
+class CaseIssue(BaseModel):
+    """Something wrong, or suspicious, about a case set."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    severity: Literal["error", "warning", "note"]
+    case_id: str | None = None
+    message: str
+
+    def render(self) -> str:
+        mark = {"error": "ERROR  ", "warning": "WARNING", "note": "note   "}[self.severity]
+        where = f"[{self.case_id}] " if self.case_id else ""
+        return f"  {mark}  {where}{self.message}"
+
+
+class CaseSetReport(BaseModel):
+    """What a case set looks like at a given as-of, and what's wrong with it.
+
+    Two jobs. The coverage half answers "will the probe tell me anything at this
+    date", which matters because a set with no future cases scores zero leakage
+    and reads like a blinded model. The validation half catches the mistakes
+    that quietly corrupt a score.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str
+    as_of: AwareDatetime
+    total: int
+    future: int
+    control: int
+    topics: dict[str, int] = Field(default_factory=dict)
+    nearest_future: list[str] = Field(default_factory=list)
+    issues: list[CaseIssue] = Field(default_factory=list)
+
+    @property
+    def errors(self) -> list[CaseIssue]:
+        return [i for i in self.issues if i.severity == "error"]
+
+    @property
+    def usable(self) -> bool:
+        """Whether a probe at this as-of could produce a meaningful number."""
+        return not self.errors and self.future > 0 and self.control > 0
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "source": self.source,
+            "as_of": self.as_of.isoformat(),
+            "total": self.total,
+            "future": self.future,
+            "control": self.control,
+            "usable": self.usable,
+            "topics": self.topics,
+            "nearest_future": self.nearest_future,
+            "issues": [
+                {"severity": i.severity, "case_id": i.case_id, "message": i.message}
+                for i in self.issues
+            ],
+        }
+
+    def render(self) -> str:
+        topics = ", ".join(f"{name}={n}" for name, n in sorted(self.topics.items()))
+        lines = [
+            self.source,
+            f"  as of    {self.as_of.isoformat()}",
+            f"  cases    {self.total}",
+            f"  future   {self.future}  (leakage questions at this date)",
+            f"  control  {self.control}  (already knowable, so a floor on ability)",
+        ]
+        if topics:
+            lines.append(f"  topics   {topics}")
+        if self.nearest_future:
+            lines.append(f"  nearest  {', '.join(self.nearest_future)}")
+        if self.issues:
+            lines.append("")
+            lines += [i.render() for i in self.issues]
+        return "\n".join(lines)
+
+
+def describe_cases(
+    cases: list[ProbeCase], as_of: datetime | str, *, source: str = "packaged set"
+) -> CaseSetReport:
+    """Describe and validate a case set at a given as-of."""
+    moment = parse_timestamp(as_of)
+    if moment is None:
+        raise ValueError(
+            f"as_of must be a timezone-aware instant, got {as_of!r}. "
+            "Add an explicit offset, for example '2023-06-01T00:00:00Z'."
+        )
+
+    future = [c for c in cases if c.kind_for(moment) == "future"]
+    control = [c for c in cases if c.kind_for(moment) == "control"]
+    topics: dict[str, int] = {}
+    for case in cases:
+        topics[case.topic] = topics.get(case.topic, 0) + 1
+
+    report = CaseSetReport(
+        source=source,
+        as_of=moment,
+        total=len(cases),
+        future=len(future),
+        control=len(control),
+        topics=topics,
+        # Nearest first, matching how a capped run selects them. See
+        # docs/kb/capped-probe-runs-take-nearest-cases.md.
+        nearest_future=[c.id for c in sorted(future, key=lambda c: c.knowable_from)[:3]],
+    )
+    report.issues = _case_issues(cases, report)
+    return report
+
+
+def _case_issues(cases: list[ProbeCase], report: CaseSetReport) -> list[CaseIssue]:
+    issues: list[CaseIssue] = []
+
+    if not cases:
+        return [CaseIssue(severity="error", message="the case set is empty")]
+
+    seen: dict[str, int] = {}
+    for case in cases:
+        seen[case.id] = seen.get(case.id, 0) + 1
+    for case_id, n in sorted(seen.items()):
+        if n > 1:
+            issues.append(
+                CaseIssue(
+                    severity="error",
+                    case_id=case_id,
+                    message=f"id appears {n} times; ids must be unique or scores double-count",
+                )
+            )
+
+    for case in cases:
+        if not case.answer.strip():
+            issues.append(CaseIssue(severity="error", case_id=case.id, message="empty answer"))
+        if not case.question.strip():
+            issues.append(CaseIssue(severity="error", case_id=case.id, message="empty question"))
+
+    if report.future == 0:
+        issues.append(
+            CaseIssue(
+                severity="error",
+                message=(
+                    f"no case is in the future at {report.as_of.date()}, so the probe would "
+                    "score 0/0 and the run would read as blinded when nothing was measured"
+                ),
+            )
+        )
+    elif report.future < 3:
+        issues.append(
+            CaseIssue(
+                severity="warning",
+                message=f"only {report.future} future case(s) at this date, so the score is coarse",
+            )
+        )
+
+    if report.control == 0:
+        issues.append(
+            CaseIssue(
+                severity="error",
+                message=(
+                    "no control cases at this date; without them a zero score means the model "
+                    "cannot answer, not that it is blinded"
+                ),
+            )
+        )
+
+    for case in cases:
+        leaked = _giveaways(case)
+        if leaked:
+            issues.append(
+                CaseIssue(
+                    severity="warning",
+                    case_id=case.id,
+                    message=(
+                        f"the question already spells out {', '.join(repr(w) for w in leaked)}, "
+                        "so any model could answer it from the question alone"
+                    ),
+                )
+            )
+
+    issues.append(
+        CaseIssue(
+            severity="note",
+            message=(
+                "only verbatim giveaways are checked. A question can still hand over its "
+                "answer by description, and no automated check catches that. Ask whether a "
+                "model knowing nothing after the cutoff could still answer it."
+            ),
+        )
+    )
+    return issues
+
+
+def _giveaways(case: ProbeCase) -> list[str]:
+    """Variants the question already spells out in full.
+
+    Every token has to be present, not just one, and none are filtered out by
+    length. Partial overlap is the normal case and flagging it buries the real
+    ones: "on what date was he removed" shares "november" and "2023" with the
+    answer "17 November 2023", but the discriminating "17" is absent, so the
+    question gives nothing away. Dropping short tokens as noise would throw away
+    exactly the one that decides it.
+
+    Tokens are squashed the same way answers are matched, so "GPT-4" in a
+    question counts against an answer of "gpt4" and a trailing full stop doesn't
+    hide a name.
+    """
+    question = {squash(w) for w in normalize(case.question).split()}
+    question.discard("")
+    out = []
+    for variant in case.variants:
+        words = [squash(w) for w in normalize(variant).split()]
+        words = [w for w in words if w]
+        if words and all(word in question for word in words) and variant not in out:
+            out.append(variant)
+    return out
 
 
 class ModelCutoffs(BaseModel):

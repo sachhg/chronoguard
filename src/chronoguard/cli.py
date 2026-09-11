@@ -22,7 +22,12 @@ from chronoguard.backends import (
 )
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.preflight import inspect_corpus, load_rows
-from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
+from chronoguard.probe import (
+    LeakageProbe,
+    describe_cases,
+    load_model_cutoffs,
+    load_probe_cases,
+)
 from chronoguard.report import RISK_ORDER, ScenarioConfig, risk_at_least, run_scenario
 
 #: What the shell sees. Documented so a CI job can branch on them.
@@ -186,6 +191,67 @@ def check(
     if breached:
         typer.secho(
             f"\n--fail-on {fail_on}: {len(breached)} finding(s) at or above that severity.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_THRESHOLD)
+
+
+@app.command()
+def cases(
+    as_of: Annotated[
+        str, typer.Option("--as-of", help="The instant to simulate. Needs a timezone offset.")
+    ] = FIXTURE_AS_OF,
+    file: Annotated[
+        Optional[str],
+        typer.Option("--cases", help="Your own case file. Defaults to the packaged set."),
+    ] = None,
+    fail_on: Annotated[
+        str,
+        typer.Option(
+            help="Exit 3 when an issue reaches this severity: error, warning, or never."
+        ),
+    ] = "never",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
+) -> None:
+    """Show how many probe questions actually apply at --as-of, and validate the set.
+
+    A case set with no future cases at your date scores zero leakage, which
+    reads exactly like a well-blinded model. This tells you which one you have.
+    No model needed.
+    """
+    if fail_on not in _CHECK_SEVERITIES:
+        typer.secho(
+            f"--fail-on must be one of {', '.join(_CHECK_SEVERITIES)}, got {fail_on!r}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT)
+
+    try:
+        report = describe_cases(
+            load_probe_cases(file),
+            as_of,
+            source=file or "packaged case set",
+        )
+    except (OSError, ValueError, ValidationError) as exc:
+        typer.secho(_first_error(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
+
+    if as_json:
+        typer.echo(json.dumps(report.summary(), indent=2))
+    else:
+        typer.echo(report.render())
+        if not report.usable:
+            typer.echo("")
+            typer.secho(
+                "A probe at this date would not measure anything.", fg=typer.colors.RED
+            )
+
+    breached = [i for i in report.issues if _CHECK_SEVERITIES[fail_on](i.severity)]
+    if breached:
+        typer.secho(
+            f"\n--fail-on {fail_on}: {len(breached)} issue(s) at or above that severity.",
             fg=typer.colors.RED,
             err=True,
         )

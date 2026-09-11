@@ -2,6 +2,38 @@
   "note": "Post-cutoff fact probes. Each case is a question whose answer only became knowable at 'knowable_from'. A case is a leakage probe for any as_of at or before that instant, and a control for any as_of after it. Deliberately generic: no sport, no vertical. Add your own, the format is stable. Important: a probe question must not contain enough information to guess its own answer, or a model with no post-cutoff knowledge scores as leaking.",
   "cases": [
     {
+      "id": "apollo-11",
+      "question": "Which spacecraft carried the first humans to land on the Moon in 1969?",
+      "answer": "Apollo 11",
+      "aliases": [],
+      "knowable_from": "1969-07-20T00:00:00Z",
+      "topic": "history"
+    },
+    {
+      "id": "berlin-wall",
+      "question": "In which year did the Berlin Wall fall?",
+      "answer": "1989",
+      "aliases": [],
+      "knowable_from": "1989-11-09T00:00:00Z",
+      "topic": "history"
+    },
+    {
+      "id": "philae-lander",
+      "question": "What was the name of the lander that touched down on comet 67P in November 2014?",
+      "answer": "Philae",
+      "aliases": [],
+      "knowable_from": "2014-11-12T00:00:00Z",
+      "topic": "science"
+    },
+    {
+      "id": "github-acquisition",
+      "question": "Which company acquired GitHub in 2018?",
+      "answer": "Microsoft",
+      "aliases": [],
+      "knowable_from": "2018-06-04T00:00:00Z",
+      "topic": "technology"
+    },
+    {
       "id": "chatgpt-launch",
       "question": "OpenAI released a conversational AI product to the public on 30 November 2022. What was it called?",
       "answer": "ChatGPT",
@@ -97,6 +129,16 @@
       "topic": "technology"
     },
     {
+      "id": "us-president-47",
+      "question": "Who was sworn in as the 47th president of the United States in January 2025?",
+      "answer": "Donald Trump",
+      "aliases": [
+        "Trump"
+      ],
+      "knowable_from": "2025-01-20T00:00:00Z",
+      "topic": "world events"
+    },
+    {
       "id": "turing-award-2024",
       "question": "Who was awarded the 2024 A.M. Turing Award, announced in March 2025?",
       "answer": "Richard Sutton",
@@ -109,36 +151,49 @@
       "topic": "science"
     },
     {
-      "id": "apollo-11",
-      "question": "Which spacecraft carried the first humans to land on the Moon in 1969?",
-      "answer": "Apollo 11",
-      "aliases": [],
-      "knowable_from": "1969-07-20T00:00:00Z",
-      "topic": "history"
+      "id": "pope-leo-xiv",
+      "question": "A new pope was elected in May 2025. What regnal name did he take?",
+      "answer": "Leo XIV",
+      "aliases": [
+        "Leo 14",
+        "Pope Leo"
+      ],
+      "knowable_from": "2025-05-08T00:00:00Z",
+      "topic": "world events"
     },
     {
-      "id": "berlin-wall",
-      "question": "In which year did the Berlin Wall fall?",
-      "answer": "1989",
-      "aliases": [],
-      "knowable_from": "1989-11-09T00:00:00Z",
-      "topic": "history"
-    },
-    {
-      "id": "philae-lander",
-      "question": "What was the name of the lander that touched down on comet 67P in November 2014?",
-      "answer": "Philae",
-      "aliases": [],
-      "knowable_from": "2014-11-12T00:00:00Z",
+      "id": "nobel-physics-2025",
+      "question": "Who shared the 2025 Nobel Prize in Physics?",
+      "answer": "John Clarke",
+      "aliases": [
+        "Michel Devoret",
+        "John Martinis"
+      ],
+      "knowable_from": "2025-10-07T00:00:00Z",
       "topic": "science"
     },
     {
-      "id": "github-acquisition",
-      "question": "Which company acquired GitHub in 2018?",
-      "answer": "Microsoft",
-      "aliases": [],
-      "knowable_from": "2018-06-04T00:00:00Z",
-      "topic": "technology"
+      "id": "nobel-literature-2025",
+      "question": "Who was awarded the 2025 Nobel Prize in Literature?",
+      "answer": "Krasznahorkai",
+      "aliases": [
+        "László Krasznahorkai",
+        "Laszlo Krasznahorkai"
+      ],
+      "knowable_from": "2025-10-09T00:00:00Z",
+      "topic": "world events"
+    },
+    {
+      "id": "nobel-peace-2025",
+      "question": "Who was awarded the 2025 Nobel Peace Prize?",
+      "answer": "Machado",
+      "aliases": [
+        "María Corina Machado",
+        "Maria Corina Machado"
+      ],
+      "knowable_from": "2025-10-10T00:00:00Z",
+      "topic": "world events"
     }
-  ]
+  ],
+  "review": "Cases must be real facts with correct knowable_from dates: a wrong date turns a control into a false leak and silently corrupts the score. Verify anything you did not add yourself, and see docs/kb/add-a-probe-case.md before extending. Run `chronoguard cases --as-of <date>` to check coverage and catch giveaways."
 }

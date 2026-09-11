@@ -683,3 +683,85 @@ class _Stub:
 
     def supports_tools(self, model: str) -> bool:
         return False
+
+
+class TestCasesCommand:
+    """`chronoguard cases` is the other command that never needs a model."""
+
+    def write(self, tmp_path, cases):
+        path = tmp_path / "cases.json"
+        path.write_text(json.dumps({"cases": cases}), encoding="utf-8")
+        return str(path)
+
+    def case(self, case_id, knowable, question="q?", answer="zyzzyva"):
+        return {"id": case_id, "question": question, "answer": answer, "knowable_from": knowable}
+
+    def test_it_runs_with_no_ollama_at_all(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            cli, "OllamaClient", lambda **kw: pytest.fail("cases must not touch Ollama")
+        )
+        assert runner.invoke(app, ["cases"]).exit_code == 0
+
+    def test_it_reports_the_split(self) -> None:
+        out = plain(runner.invoke(app, ["cases", "--as-of", "2023-06-01T00:00:00Z"]))
+        assert "future" in out
+        assert "control" in out
+
+    def test_json_output_parses(self) -> None:
+        payload = json.loads(plain(runner.invoke(app, ["cases", "--json"])))
+        assert payload["future"] > 0
+        assert payload["usable"] is True
+
+    def test_a_late_as_of_reports_nothing_measurable(self) -> None:
+        # The packaged set runs out, which is exactly what this command is for.
+        out = plain(runner.invoke(app, ["cases", "--as-of", "2030-01-01T00:00:00Z"]))
+        assert "would not measure anything" in out
+
+    def test_a_custom_file_is_read(self, tmp_path) -> None:
+        path = self.write(tmp_path, [
+            self.case("mine-old", "2020-01-01T00:00:00Z"),
+            self.case("mine-new", "2024-01-01T00:00:00Z"),
+        ])
+        out = plain(runner.invoke(app, ["cases", "--cases", path, "--as-of", "2023-06-01T00:00:00Z"]))
+        assert "cases    2" in out
+        assert path in out
+
+    def test_a_bad_as_of_exits_two(self) -> None:
+        assert runner.invoke(app, ["cases", "--as-of", "2023-06-01"]).exit_code == 2
+
+    def test_a_missing_file_exits_two(self, tmp_path) -> None:
+        result = runner.invoke(app, ["cases", "--cases", str(tmp_path / "nope.json")])
+        assert result.exit_code == 2
+
+    def test_a_malformed_case_exits_two(self, tmp_path) -> None:
+        path = self.write(tmp_path, [{"id": "x", "question": "q?"}])
+        assert runner.invoke(app, ["cases", "--cases", path]).exit_code == 2
+
+    def test_fail_on_error_fires_when_nothing_is_measurable(self) -> None:
+        result = runner.invoke(
+            app, ["cases", "--as-of", "2030-01-01T00:00:00Z", "--fail-on", "error"]
+        )
+        assert result.exit_code == cli.EXIT_THRESHOLD
+
+    def test_fail_on_error_passes_a_healthy_set(self) -> None:
+        result = runner.invoke(
+            app, ["cases", "--as-of", "2023-06-01T00:00:00Z", "--fail-on", "error"]
+        )
+        assert result.exit_code == 0, plain(result)
+
+    def test_a_giveaway_is_reported(self, tmp_path) -> None:
+        path = self.write(tmp_path, [
+            self.case("old", "2020-01-01T00:00:00Z"),
+            self.case("leaky", "2024-01-01T00:00:00Z",
+                      question="Did Richard Sutton win?", answer="Richard Sutton"),
+        ])
+        out = plain(runner.invoke(app, ["cases", "--cases", path, "--as-of", "2023-06-01T00:00:00Z"]))
+        assert "spells out" in out
+        assert "leaky" in out
+
+    def test_the_packaged_set_ships_clean(self) -> None:
+        # No duplicate ids, no giveaways, and usable at the default as-of.
+        result = runner.invoke(
+            app, ["cases", "--as-of", "2023-06-01T00:00:00Z", "--fail-on", "warning"]
+        )
+        assert result.exit_code == 0, plain(result)

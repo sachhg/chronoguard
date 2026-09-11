@@ -394,6 +394,32 @@ report says `inconclusive`, not `low`.
   score. The judge only runs when the cheap paths fail and the model didn't
   refuse.
 
+### Checking the case set
+
+A case set with no future cases at your date scores zero leakage, which reads
+exactly like a well-blinded model. `chronoguard cases` tells you which one you
+have, with no model involved:
+
+```bash
+chronoguard cases --as-of 2025-06-01T00:00:00Z
+```
+
+```
+packaged case set
+  as of    2025-06-01T00:00:00+00:00
+  cases    19
+  future   3  (leakage questions at this date)
+  control  16  (already knowable, so a floor on ability)
+```
+
+It also validates: duplicate ids, empty answers, and questions that spell their
+own answer out verbatim. What it can't check is whether a fact or its date is
+*right*, and it says so rather than implying otherwise. A wrong `knowable_from`
+turns a control into a false leak and quietly corrupts the score.
+
+Point it at your own file with `--cases mine.json`, and gate on it in CI with
+`--fail-on error`.
+
 ### Extending the case set
 
 `src/chronoguard/data/probe_cases.json` holds question, answer, aliases and
