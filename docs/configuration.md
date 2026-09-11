@@ -18,7 +18,8 @@ midnight.
 ## TemporalGuard
 
 ```python
-TemporalGuard(as_of, *, policy=GuardPolicy.STRICT, allow_undated=False)
+TemporalGuard(as_of, *, policy=GuardPolicy.STRICT, allow_undated=False,
+              revisions=RevisionPolicy.REJECT)
 ```
 
 | Option | Default | Meaning |
@@ -26,9 +27,27 @@ TemporalGuard(as_of, *, policy=GuardPolicy.STRICT, allow_undated=False)
 | `as_of` | required | The instant being simulated. Aware datetime or ISO string with an offset. |
 | `policy` | `strict` | `strict` drops violations. `warn` keeps and flags them, for measuring how much a corpus *would* have leaked. |
 | `allow_undated` | `False` | Admit records with no usable publication timestamp. Covers missing, junk and timezone-naive dates together. |
+| `revisions` | `reject` | `reject` treats an `updated_at` at or after `as_of` as a violation. `ignore` filters on publication date only. |
 
 Records the `warn` policy lets through still count as violations, so
 `filtered_count` and `violation_count` are separate numbers.
+
+`policy` decides what the agent *sees*. `revisions` and `allow_undated` decide
+what counts as a violation in the first place, so `warn` and `strict` always
+reach the same verdict on the same record.
+
+### Verdicts
+
+| Verdict | Meaning |
+| --- | --- |
+| `allowed` | Published strictly before `as_of`, and not edited since. |
+| `future` | Published at or after `as_of`. |
+| `undated` | No publication timestamp. |
+| `unparseable` | A publication timestamp was supplied but isn't a usable instant. |
+| `revised` | Published before `as_of` but edited at or after it. |
+
+A record with no `updated_at` can never be `revised`, so nothing changes on an
+existing corpus until an adapter names the field.
 
 ## EvidenceRecord
 
@@ -36,10 +55,17 @@ Records the `warn` policy lets through still count as violations, so
 | --- | --- | --- |
 | `content` | required | The text the agent will see. |
 | `source_id` | required | Stable id: a URL, a document id, a primary key. |
-| `published_at` | `None` | When the world could first have seen this. The only field filtered on. |
+| `published_at` | `None` | When the world could first have seen this. Filtered on. |
+| `updated_at` | `None` | When it was last revised. Filtered on unless `revisions="ignore"`. |
 | `retrieved_at` | `None` | When your pipeline fetched it. Never filtered on, audit only. |
 | `metadata` | `{}` | Anything else. `MappingAdapter` parks unconsumed fields here. |
 | `published_at_raw` | `None` | What a timestamp was before it failed to parse, kept for reporting. |
+| `updated_at_raw` | `None` | Same, for an unparseable revision timestamp. |
+
+Two derived properties: `is_revised` (an `updated_at` strictly later than
+`published_at`; equal stamps are an insert, not an edit) and `latest_instant`
+(the most recent moment the content is shown to have existed in its current
+form).
 
 `EvidenceRecord(...)` is strict and raises on a naive datetime.
 `EvidenceRecord.from_source(...)` is lenient, never raises, and takes an extra
@@ -50,8 +76,8 @@ Records the `warn` policy lets through still count as violations, so
 ```python
 MappingAdapter(*, content_key="content", source_key=("source_id", "id", "url"),
                published_key=("published_at", "published", "date"),
-               retrieved_key=None, results_key=None, metadata_keys=None,
-               assume_tz=None, separator="\n")
+               updated_key=None, retrieved_key=None, results_key=None,
+               metadata_keys=None, assume_tz=None, separator="\n")
 ```
 
 | Option | Meaning |
@@ -59,6 +85,7 @@ MappingAdapter(*, content_key="content", source_key=("source_id", "id", "url"),
 | `content_key` | One field, or several joined in order. Missing ones are skipped, so `("title", "snippet")` works on records that only have a title. |
 | `source_key` | One field or several candidates, first hit wins. Falls back to `record-<n>` when none are present. |
 | `published_key` | Same, for the publication timestamp. |
+| `updated_key` | Optional, off by default. Name it on any mutable source or the field lands in `metadata`, where the guard never looks. |
 | `retrieved_key` | Optional. |
 | `results_key` | For tools returning a wrapper like `{"matches": [...]}`. |
 | `metadata_keys` | Which leftovers to keep. Default keeps everything unconsumed. |
@@ -77,6 +104,16 @@ guarded_tool(guard, adapter=None, *, name=None, audit=None, render=None)   # dec
 | `name` | the function's name | Name used in the audit log and tool schema. |
 | `audit` | a fresh log | Share one across every tool an agent gets, or run-level counts will be empty. |
 | `render` | returns `result.kept` | Turns the `FilterResult` into what the agent sees. Gets the whole result, so it can read what was dropped. |
+
+Wrapping an `async def` returns an awaitable, so you await the guarded tool
+exactly as you would have awaited the original. Filtering happens after the
+await, which means nothing is audited until the coroutine actually runs. A class
+whose `__call__` is async is handled too. Async generators are not supported.
+
+```python
+guarded = guard_tool(async_search, guard, adapter, audit=audit)
+kept = await guarded("meridian pricing")
+```
 
 ## AgentConfig
 

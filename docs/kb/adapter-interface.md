@@ -4,7 +4,7 @@ title: Adapters map a tool's own shape onto evidence records
 type: contract
 description: The three adapter kinds and when each applies.
 tags: [interception, api]
-links: [evidence-record-contract, guarded-tool-contract, add-a-guarded-tool]
+links: [evidence-record-contract, guarded-tool-contract, add-a-guarded-tool, revision-dates-are-a-third-channel]
 source: src/chronoguard/interception.py
 ---
 An adapter is anything with `to_records(raw) -> list[EvidenceRecord]`. This is
@@ -22,3 +22,7 @@ Three ways to supply one:
 
 `resolve_adapter` accepts all three plus None. If you write a new adapter, give
 it `to_records` and it will be accepted by the protocol check.
+
+`MappingAdapter`'s `updated_key` is off unless you name it, and on a mutable
+source you should: a field left unmapped lands in `metadata`, where the guard
+never looks. See [[revision-dates-are-a-third-channel]].

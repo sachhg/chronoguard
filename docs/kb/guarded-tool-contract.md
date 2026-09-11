@@ -4,11 +4,13 @@ title: GuardedTool wraps a callable and keeps its signature
 type: contract
 description: What wrapping changes, what it preserves, and what not to wrap.
 tags: [interception, api, agent]
-links: [adapter-interface, audit-log-is-the-reporting-side, add-a-guarded-tool]
+links: [adapter-interface, audit-log-is-the-reporting-side, add-a-guarded-tool, async-tools-are-awaited-then-filtered]
 source: src/chronoguard/interception.py
 ---
 `GuardedTool` runs the real tool, adapts its output, filters it, logs the
-decision, and returns the survivors. Call it exactly like the function it wraps.
+decision, and returns the survivors. Call it exactly like the function it wraps,
+including awaiting it when the tool is async, see
+[[async-tools-are-awaited-then-filtered]].
 
 What it preserves, via `functools.update_wrapper`: `__name__`, `__doc__` and the
 signature. This is not cosmetic. `tool_schema` builds native tool-calling

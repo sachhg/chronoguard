@@ -42,6 +42,7 @@ when you control the data and want naive datetimes to fail loudly.
 | `published_at > as_of` | rejected | This is the leak we're here for. |
 | No timestamp | rejected | Can't prove it predates the cutoff. `allow_undated=True` overrides. |
 | Junk or timezone-naive timestamp | rejected | Same reason. A wall clock with no offset isn't an instant. |
+| `updated_at >= as_of` | **rejected** | Published in time, edited since. See below. `revisions="ignore"` overrides. |
 | `retrieved_at` after `as_of` | ignored | Normal. You're running the backtest today. |
 
 **Why the boundary is exclusive.** Plenty of corpora store dates at day
@@ -51,6 +52,27 @@ anywhere in that day sails through, including ones written hours after the
 moment you're simulating. Dropping a record published on the exact microsecond
 of the cutoff costs you nothing. Admitting a day of hindsight costs you the
 experiment. If you want a full day, name the next midnight: `2023-06-02T00:00:00Z`.
+
+**Why revisions count.** `published_at` tells you when content first existed.
+On a mutable source that isn't the same as when the text you just retrieved was
+written. A wiki page created in 2022 and rewritten in 2024 has a 2022 creation
+date and 2024 content, and filtering on the creation date alone hands the agent
+two years of hindsight. Confluence, Notion, SharePoint, Git and Jira all carry a
+modified date, and RAG over exactly those systems is the common case.
+
+So a record whose `updated_at` lands at or after `as_of` is rejected with the
+verdict `revised`, on the same exclusive boundary. This costs you nothing on an
+immutable corpus: a record with no `updated_at` can never be `revised`, and
+nothing fills that field in until your adapter names it. Pass
+`revisions="ignore"` to filter on publication date alone.
+
+One asymmetry. An unparseable `published_at` rejects the record; an unparseable
+`updated_at` on an otherwise well-dated record doesn't. With no usable
+`published_at` there's nothing showing the content predates the cutoff. With a
+good one and a junk revision field, the content is already proven old enough and
+the only unknown is whether it was edited since, and rejecting there would gut
+any real corpus over a few malformed fields. The raw value stays in
+`updated_at_raw`.
 
 ### Policies
 
@@ -103,6 +125,39 @@ stays clean. Share one log across every tool an agent gets and the report can
 name which tool was leakiest. `guard_tool(fn, guard, adapter)` is the
 non-decorator form. The wrapper keeps the tool's name, docstring and signature,
 so agent frameworks can still build a schema from it.
+
+On a mutable source, name the revision field too. Left unmapped it lands in
+`metadata`, where the guard never looks:
+
+```python
+MappingAdapter(
+    content_key=("title", "body"),
+    source_key="page_id",
+    published_key="created_at",
+    updated_key="last_modified",   # without this, an edited page reads as old
+)
+```
+
+### Async tools
+
+Wrap an `async def` and you get back something you await. Everything else is the
+same: same guard, same audit log, same adapter, so a codebase can mix the two
+freely.
+
+```python
+@guarded_tool(guard, adapter, audit=audit)
+async def vector_search(query: str, k: int = 5) -> list[dict]:
+    """Search the vector store."""
+    return await client.query(query, k)
+
+hits = await vector_search("meridian pricing")
+```
+
+Filtering happens after the await, because there's nothing to filter until the
+tool has actually returned. Two things follow: nothing is audited until you
+await the call, and concurrent calls through `asyncio.gather` all land in the
+shared log. A class whose `__call__` is async works too. Async generators don't;
+a tool has to return its results rather than yield them.
 
 Only wrap tools that return evidence. A calculator has nothing to filter.
 

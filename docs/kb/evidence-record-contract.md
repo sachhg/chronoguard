@@ -4,14 +4,19 @@ title: EvidenceRecord is the only shape the guard understands
 type: contract
 description: Fields, the two constructors, and when to use which.
 tags: [evidence, api]
-links: [adapter-interface, naive-datetimes-are-not-instants, undated-records-rejected-by-default]
+links: [adapter-interface, naive-datetimes-are-not-instants, undated-records-rejected-by-default, revision-dates-are-a-third-channel]
 source: src/chronoguard/evidence.py
 ---
 Every tool output becomes `EvidenceRecord` before anything else looks at it, so
 filtering logic only has to understand one shape.
 
-Fields: `content`, `source_id`, `published_at` (aware or None), `retrieved_at`,
-`metadata` dict, `published_at_raw`.
+Fields: `content`, `source_id`, `published_at` (aware or None), `updated_at`,
+`retrieved_at`, `metadata` dict, `published_at_raw`, `updated_at_raw`.
+
+Three dates, and only two of them are filtered on. `published_at` is when the
+content first existed. `updated_at` is when it was last revised, and is filtered
+on too, see [[revision-dates-are-a-third-channel]]. `retrieved_at` is never
+filtered on.
 
 Two constructors, and the choice matters:
 
@@ -24,3 +29,8 @@ Two constructors, and the choice matters:
 
 `retrieved_at` is never filtered on. You are running the backtest today, so
 everything was retrieved after as_of. It is there for audit trails.
+
+Two derived properties: `is_revised` is true when `updated_at` is strictly later
+than `published_at` (equal stamps are an insert, not an edit), and
+`latest_instant` is the most recent moment the content can be shown to have
+existed in its current form.

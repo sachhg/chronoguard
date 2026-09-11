@@ -14,7 +14,7 @@ need different fixes:
 
 | Channel | What happens | Fix |
 | --- | --- | --- |
-| **Tool leakage** | A tool (search, RAG store, API) hands back a document published after the as-of date. | Solvable. Intercept every tool call, filter results by timestamp. |
+| **Tool leakage** | A tool (search, RAG store, API) hands back a document published after the as-of date, or one edited after it. | Solvable. Intercept every tool call, filter results by timestamp. |
 | **Parametric leakage** | The weights already encode post-as-of facts, so the model answers correctly with zero tool access. | Not solvable by filtering. You can only measure it and pick a better model. |
 
 Something that does only the first and calls itself a sandbox is solving the
@@ -116,6 +116,18 @@ def web_search(query: str) -> list[dict]:
 
 web_search("meridian pricing")   # pre-as-of hits only
 audit.filtered_count             # what it didn't see
+```
+
+`async def` tools work the same way, you just await the wrapped version.
+
+On a mutable source (a wiki, a CMS, a ticket tracker) map the revision field as
+well. A page created in 2022 and rewritten in 2024 has a 2022 creation date and
+2024 content, and filtering on the creation date alone walks it straight past
+the guard:
+
+```python
+MappingAdapter(source_key="page_id", published_key="created_at",
+               updated_key="last_modified")
 ```
 
 Then run the whole pipeline:

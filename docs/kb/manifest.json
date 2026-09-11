@@ -1,5 +1,5 @@
 {
-  "note_count": 48,
+  "note_count": 50,
   "types": [
     "concept",
     "contract",
@@ -22,7 +22,8 @@
       "links": [
         "evidence-record-contract",
         "guarded-tool-contract",
-        "add-a-guarded-tool"
+        "add-a-guarded-tool",
+        "revision-dates-are-a-third-channel"
       ],
       "source": "src/chronoguard/interception.py"
     },
@@ -39,7 +40,8 @@
       ],
       "links": [
         "canary-strings",
-        "fictional-fixture-scenario"
+        "fictional-fixture-scenario",
+        "revision-dates-are-a-third-channel"
       ],
       "source": "src/chronoguard/fixtures/data/"
     },
@@ -109,6 +111,24 @@
         "audit-log-is-the-reporting-side"
       ],
       "source": "src/chronoguard/agent.py"
+    },
+    {
+      "id": "async-tools-are-awaited-then-filtered",
+      "path": "async-tools-are-awaited-then-filtered.md",
+      "title": "Async tools are awaited first, then filtered",
+      "type": "contract",
+      "description": "Wrapping an async def returns an awaitable; filtering happens inside it, after the await.",
+      "tags": [
+        "interception",
+        "api",
+        "async"
+      ],
+      "links": [
+        "guarded-tool-contract",
+        "add-a-guarded-tool",
+        "audit-log-is-the-reporting-side"
+      ],
+      "source": "src/chronoguard/interception.py"
     },
     {
       "id": "audit-log-is-the-reporting-side",
@@ -291,7 +311,8 @@
       "links": [
         "adapter-interface",
         "naive-datetimes-are-not-instants",
-        "undated-records-rejected-by-default"
+        "undated-records-rejected-by-default",
+        "revision-dates-are-a-third-channel"
       ],
       "source": "src/chronoguard/evidence.py"
     },
@@ -356,7 +377,8 @@
       "links": [
         "adapter-interface",
         "audit-log-is-the-reporting-side",
-        "add-a-guarded-tool"
+        "add-a-guarded-tool",
+        "async-tools-are-awaited-then-filtered"
       ],
       "source": "src/chronoguard/interception.py"
     },
@@ -624,6 +646,24 @@
         "run-the-test-suites"
       ],
       "source": "docs/kb/repo-conventions.md"
+    },
+    {
+      "id": "revision-dates-are-a-third-channel",
+      "path": "revision-dates-are-a-third-channel.md",
+      "title": "A page edited after as_of leaks even when it was published before it",
+      "type": "decision",
+      "description": "updated_at is filtered on by default, because publication date alone is not enough for mutable sources.",
+      "tags": [
+        "guard",
+        "dates",
+        "evidence"
+      ],
+      "links": [
+        "boundary-rule-is-exclusive",
+        "undated-records-rejected-by-default",
+        "two-leakage-channels"
+      ],
+      "source": "src/chronoguard/guard.py"
     },
     {
       "id": "run-the-test-suites",

@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-48 notes.
+50 notes.
 
 ## concept
 
@@ -41,6 +41,7 @@ Choices that were made deliberately, with the reasoning. Do not reverse one with
 - [probe-has-a-control-group](probe-has-a-control-group.md) Zero leakage from a model that can't answer anything is not evidence of blinding.
 - [probe-questions-must-not-leak-answers](probe-questions-must-not-leak-answers.md) Questions naming the answer's defining attribute produce false leakage from models with no post-cutoff knowledge.
 - [prompt-is-not-containment](prompt-is-not-containment.md) The as-of line in the prompt keeps the model on task; the guard is what actually blocks the future.
+- [revision-dates-are-a-third-channel](revision-dates-are-a-third-channel.md) updated_at is filtered on by default, because publication date alone is not enough for mutable sources.
 - [undated-records-rejected-by-default](undated-records-rejected-by-default.md) No timestamp, junk timestamp or naive timestamp means rejected unless allow_undated is set.
 - [verdict-never-reports-unearned-clean](verdict-never-reports-unearned-clean.md) Two rules stop a spotless-looking run from reading as low risk.
 
@@ -49,6 +50,7 @@ Choices that were made deliberately, with the reasoning. Do not reverse one with
 Shapes and interfaces other code depends on.
 
 - [adapter-interface](adapter-interface.md) The three adapter kinds and when each applies.
+- [async-tools-are-awaited-then-filtered](async-tools-are-awaited-then-filtered.md) Wrapping an async def returns an awaitable; filtering happens inside it, after the await.
 - [audit-log-is-the-reporting-side](audit-log-is-the-reporting-side.md) Share one log across an agent's tools; that is where filtered counts come from.
 - [claim-and-answer-matching](claim-and-answer-matching.md) Matching rules used by the probe, including the short-answer token rule.
 - [claim-label-meanings](claim-label-meanings.md) grounded, ungrounded-but-benign, suspected-parametric-leak, plus the unclassified escape hatch.
