@@ -4,7 +4,7 @@ title: Where everything lives
 type: map
 description: One line per module and data file, in dependency order.
 tags: [architecture, orientation]
-links: [containment-vs-measurement, repo-conventions, circular-import-via-package-root, typer-collapses-single-command-apps]
+links: [containment-vs-measurement, repo-conventions, circular-import-via-package-root, typer-collapses-single-command-apps, check-is-the-no-model-path]
 source: src/chronoguard/
 ---
 Layer 1, containment:
@@ -13,6 +13,7 @@ Layer 1, containment:
 - `evidence.py` `EvidenceRecord`, `parse_timestamp`
 - `guard.py` `TemporalGuard`, `Verdict`, `Judgement`, `FilterResult`
 - `interception.py` `GuardedTool`, adapters, `AuditLog`
+- `preflight.py` corpus inspection with no model in the loop, see [[check-is-the-no-model-path]]
 - `fixtures/` fake web search and document store, `fixtures/data/*.json`
 
 Layer 2, measurement:
@@ -26,5 +27,5 @@ Layer 2, measurement:
 
 Entry points:
 
-- `cli.py` `version`, `models`, `run`, `probe`, `report`
+- `cli.py` `version`, `check`, `models`, `run`, `probe`, `report`
 - `__init__.py` re-exports the public surface; internals never import from it

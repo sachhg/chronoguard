@@ -83,6 +83,54 @@ any real corpus over a few malformed fields. The raw value stays in
 Records that `warn` lets through still count as violations, so `kept` never gets
 mistaken for clean.
 
+## Checking a corpus first
+
+Before spending a model call, find out whether your data can support the run at
+all. `chronoguard check` runs the guard over a corpus file and reports what it
+would do. No model, no network:
+
+```bash
+chronoguard check corpus.json --as-of 2024-03-01T00:00:00Z \
+  --published-key created_utc --updated-key amended --source-key doc_id
+```
+
+```
+corpus.json
+  as of    2024-03-01T00:00:00+00:00
+  rows     12
+  kept     5
+  dropped  7 (58%)  (allowed=5, future=4, undated=1, unparseable=1, revised=1)
+  fields   content=text, source=ref, published=published, updated=amended
+
+  note     2 of 12 record(s) (17%) have no usable publication date, so they are rejected on sight
+           Records with no date cannot be shown to predate the cutoff, so they are dropped.
+```
+
+It takes a JSON array, a JSONL file, or a wrapper object (auto-detected when
+there's exactly one list inside, otherwise name it with `--results-key`).
+
+Two results are errors, and both look fine if you only skim a report:
+
+- **Everything dropped.** The agent gets no evidence, so whatever it answers
+  came from its weights alone. Usually a wrong `--published-key` or an as-of
+  before the corpus starts, not a corpus that's really all future.
+- **Nothing dropped.** The corpus doesn't straddle the date, so the guard never
+  had a job to do and a clean run proves nothing.
+
+It also names timestamp fields you haven't mapped. An unmapped `last_modified`
+is the one to care about, because it sits in `metadata` where the guard never
+looks:
+
+```
+  WARNING  'amended' looks like a revision timestamp and is not mapped, so it is
+           sitting in metadata where the guard never looks
+           Pass --updated-key amended. A page published before the as-of date and
+           edited after it reads as old content otherwise.
+```
+
+From Python it's `inspect_corpus(rows, as_of, adapter=...)`, returning a
+`CorpusReport` with `.render()`, `.summary()` and `.usable`.
+
 ## Guarding a tool
 
 Wrap any callable that returns evidence. The agent calls it normally and only

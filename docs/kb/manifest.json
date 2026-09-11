@@ -1,5 +1,5 @@
 {
-  "note_count": 50,
+  "note_count": 51,
   "types": [
     "concept",
     "contract",
@@ -196,6 +196,24 @@
         "falsy-zero-limits"
       ],
       "source": "src/chronoguard/probe.py"
+    },
+    {
+      "id": "check-is-the-no-model-path",
+      "path": "check-is-the-no-model-path.md",
+      "title": "chronoguard check answers \"will this corpus work\" offline",
+      "type": "procedure",
+      "description": "Run the guard over a corpus with no model, and read the two failure modes that look like success.",
+      "tags": [
+        "cli",
+        "corpus",
+        "howto"
+      ],
+      "links": [
+        "test-that-the-raw-tool-leaks-first",
+        "revision-dates-are-a-third-channel",
+        "undated-records-rejected-by-default"
+      ],
+      "source": "src/chronoguard/preflight.py"
     },
     {
       "id": "circular-import-via-package-root",
@@ -462,7 +480,8 @@
         "containment-vs-measurement",
         "repo-conventions",
         "circular-import-via-package-root",
-        "typer-collapses-single-command-apps"
+        "typer-collapses-single-command-apps",
+        "check-is-the-no-model-path"
       ],
       "source": "src/chronoguard/"
     },
@@ -746,7 +765,8 @@
       ],
       "links": [
         "canary-strings",
-        "fictional-fixture-scenario"
+        "fictional-fixture-scenario",
+        "check-is-the-no-model-path"
       ],
       "source": "tests/test_fixture_tools.py"
     },

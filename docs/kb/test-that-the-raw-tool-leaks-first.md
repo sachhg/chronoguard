@@ -4,11 +4,15 @@ title: Assert the unguarded path leaks before asserting the guarded one doesn't
 type: pitfall
 description: A leak test passes trivially if the tool never returned the future in the first place.
 tags: [testing, fixtures]
-links: [canary-strings, fictional-fixture-scenario]
+links: [canary-strings, fictional-fixture-scenario, check-is-the-no-model-path]
 source: tests/test_fixture_tools.py
 ---
 `TestRawToolsLeak` asserts the *unguarded* fixture tools do return post-as-of
 content. Only then do the guarded tests assert they don't.
+
+The same argument one level up is [[check-is-the-no-model-path]]: a corpus that
+never straddles the as-of date gives the guard nothing to withhold, so a clean
+run on it proves nothing either.
 
 Without that, a corpus change that stopped surfacing post-as-of documents would
 make every leak test pass while testing nothing. The same reasoning is why the

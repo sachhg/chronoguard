@@ -39,6 +39,19 @@ chronoguard models            # what's installed, and can it call tools natively
 chronoguard report "When will Halden ship Meridian, and what will it cost per seat?"
 ```
 
+Pointing it at your own data? Check the corpus first. This one needs no model at
+all, so it's the fastest way to find out whether a run can tell you anything:
+
+```bash
+chronoguard check corpus.json --as-of 2024-03-01T00:00:00Z --published-key created_utc
+```
+
+It reports what the guard would drop, and flags the two outcomes that waste a
+run: everything dropped (the agent gets no evidence, so it answers from its
+weights) and nothing dropped (the corpus never straddled the date, so a clean
+run proves nothing). It also names timestamp fields you haven't mapped, which is
+how an unmapped `last_modified` gets caught before it leaks.
+
 `chronoguard models` tells you which loop each model will drive:
 
 ```

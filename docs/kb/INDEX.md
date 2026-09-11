@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-50 notes.
+51 notes.
 
 ## concept
 
@@ -70,6 +70,7 @@ How to carry out a specific task in this repo.
 - [add-a-guarded-tool](add-a-guarded-tool.md) Wrap any callable returning evidence so an agent only sees pre-as-of results.
 - [add-a-model-cutoff](add-a-model-cutoff.md) Edit model_cutoffs.json; matching is by family with longest-prefix fallback.
 - [add-a-probe-case](add-a-probe-case.md) Extend probe_cases.json or point at your own file.
+- [check-is-the-no-model-path](check-is-the-no-model-path.md) Run the guard over a corpus with no model, and read the two failure modes that look like success.
 - [run-the-test-suites](run-the-test-suites.md) Fast offline suite versus the Ollama-backed integration suite.
 - [tune-a-judge-prompt](tune-a-judge-prompt.md) Measure against known labels before and after; do not guess at prompt changes.
 

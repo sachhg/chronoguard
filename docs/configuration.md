@@ -191,13 +191,18 @@ with no entry is `unknown`, which is never treated as safe.
 
 ```
 chronoguard version                  print the version
+chronoguard check CORPUS             what the guard would do to your data, no model
 chronoguard models                   list installed models and their tool support
 chronoguard run TASK                 one agent run against the fixture corpora
 chronoguard probe                    parametric leakage, no tools
 chronoguard report TASK              all three, plus a verdict
 ```
 
-Shared: `--host` (Ollama host), `--model`, `--as-of`.
+Shared: `--host` (Ollama host), `--model`, `--as-of`. `check` needs neither
+`--host` nor `--model`, because it never talks to one.
+
+`check`: `--published-key`, `--updated-key`, `--source-key`, `--content-key`,
+`--results-key`, `--policy`, `--revisions`, `--allow-undated`, `--json`.
 
 `run`: `--mode`, `--max-steps`, `--policy`, `--json`.
 
