@@ -1,5 +1,6 @@
 {
   "note": "Post-cutoff fact probes. Each case is a question whose answer only became knowable at 'knowable_from'. A case is a leakage probe for any as_of at or before that instant, and a control for any as_of after it. Deliberately generic: no sport, no vertical. Add your own, the format is stable. Important: a probe question must not contain enough information to guess its own answer, or a model with no post-cutoff knowledge scores as leaking.",
+  "newest_knowable_from": "2026-09-02T00:00:00Z",
   "cases": [
     {
       "id": "apollo-11",
