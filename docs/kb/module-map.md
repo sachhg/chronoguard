@@ -4,7 +4,7 @@ title: Where everything lives
 type: map
 description: One line per module and data file, in dependency order.
 tags: [architecture, orientation]
-links: [containment-vs-measurement, repo-conventions, circular-import-via-package-root, typer-collapses-single-command-apps, check-is-the-no-model-path]
+links: [containment-vs-measurement, repo-conventions, circular-import-via-package-root, typer-collapses-single-command-apps, check-is-the-no-model-path, backend-protocol]
 source: src/chronoguard/
 ---
 Layer 1, containment:
@@ -18,6 +18,7 @@ Layer 1, containment:
 
 Layer 2, measurement:
 
+- `backends.py` `ChatBackend` protocol, wire types, `OpenAICompatClient`, see [[backend-protocol]]
 - `ollama.py` HTTP client, runtime model discovery, capability detection
 - `agent.py` the loop, native and react modes, `format_evidence`, `tool_schema`
 - `probe.py` parametric leakage probe, scoring, cutoff risk

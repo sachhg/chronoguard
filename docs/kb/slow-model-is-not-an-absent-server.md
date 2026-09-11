@@ -4,7 +4,7 @@ title: A slow model is not an absent server
 type: contract
 description: OllamaTimeout separates a thinking model running long from a server that is actually down, because the advice differs.
 tags: [ollama, cli, errors]
-links: [thinking-models-and-the-think-flag, run-the-test-suites]
+links: [thinking-models-and-the-think-flag, run-the-test-suites, backend-protocol]
 source: src/chronoguard/ollama.py
 ---
 

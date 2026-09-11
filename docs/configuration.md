@@ -198,8 +198,8 @@ chronoguard probe                    parametric leakage, no tools
 chronoguard report TASK              all three, plus a verdict
 ```
 
-Shared: `--host` (Ollama host), `--model`, `--as-of`. `check` needs neither
-`--host` nor `--model`, because it never talks to one.
+Shared: `--host` (Ollama host), `--model`, `--as-of`, `--backend`, `--base-url`.
+`check` takes none of those, because it never talks to a model.
 
 `check`: `--published-key`, `--updated-key`, `--source-key`, `--content-key`,
 `--results-key`, `--policy`, `--revisions`, `--allow-undated`, `--fail-on`,
@@ -247,11 +247,54 @@ Output comes first either way. The report is printed and `--json-out` written
 before the threshold is checked, because the run that failed the build is the
 one whose output you need to read.
 
+## Backends
+
+ChronoGuard needs four things from a model server, and anything providing them
+works. Two ship:
+
+```bash
+chronoguard report "..."                                   # ollama, the default
+chronoguard report "..." --base-url http://localhost:8000  # anything OpenAI-compatible
+```
+
+| Backend | Use for | Selected by |
+| --- | --- | --- |
+| `ollama` | A local Ollama server. The default. | nothing, or `--backend ollama` |
+| `openai-compat` | vLLM, LM Studio, llama.cpp's server, text-generation-webui, OpenRouter, hosted APIs. | `--backend openai-compat`, or just `--base-url` |
+
+`--base-url` selects `openai-compat` on its own, since naming an OpenAI API root
+and getting an Ollama client is never what anyone meant. It accepts the root with
+or without the `/v1` suffix.
+
+```python
+from chronoguard import OpenAICompatClient, ScenarioConfig, run_scenario
+
+client = OpenAICompatClient("http://localhost:8000", tool_models={"Qwen/Qwen2.5-7B-Instruct"})
+report = run_scenario(ScenarioConfig(task="...", as_of="..."), client=client)
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `base_url` | `OPENAI_BASE_URL`, then `http://localhost:8000/v1` | API root, `/v1` optional. |
+| `api_key` | `OPENAI_API_KEY` | Bearer token. No header is sent without one, which is what local servers want. |
+| `timeout` | `600.0` | Seconds per request. |
+| `tool_models` | `True` | Which models get real tool definitions. `True` for all, `False` for none, or a set of names. There's no capability endpoint in this API, so this is a declaration rather than something discoverable. |
+
+Writing your own backend means satisfying `ChatBackend`: `chat`, `pick_model`,
+`supports_tools`, `list_models`, `model_names`, `is_available`, and a `host`
+attribute. Raise `BackendUnavailable`, or `BackendTimeout` when the server is up
+and the model is just slow.
+
 ## Environment
 
-`OLLAMA_HOST` sets the default Ollama host. The scheme is optional, so
-`localhost:11434` and `http://localhost:11434` both work. Defaults to
-`http://localhost:11434`.
+| Variable | Used by | Default |
+| --- | --- | --- |
+| `OLLAMA_HOST` | `OllamaClient` | `http://localhost:11434` |
+| `OPENAI_BASE_URL` | `OpenAICompatClient` | `http://localhost:8000/v1` |
+| `OPENAI_API_KEY` | `OpenAICompatClient` | none, and no header is sent |
+
+The scheme is optional everywhere, so `localhost:11434` and
+`http://localhost:11434` both work.
 
 ## Timeouts
 

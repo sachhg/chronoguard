@@ -286,6 +286,39 @@ Two things the runner does on purpose:
 It also refuses to start if a tool's guard disagrees with the run's `as_of`,
 which is otherwise a silent footgun: prompt says one date, filter uses another.
 
+### Other backends
+
+Ollama is the default and the primary target, but nothing in ChronoGuard needs
+it specifically. Anything speaking the OpenAI chat-completions API works:
+
+```bash
+chronoguard report "..." --base-url http://localhost:8000    # vLLM, LM Studio, llama.cpp
+```
+
+```python
+from chronoguard import OpenAICompatClient, run_scenario
+
+run_scenario(config, client=OpenAICompatClient("http://localhost:8000"))
+```
+
+That covers vLLM, LM Studio, llama.cpp's server, text-generation-webui,
+OpenRouter and the hosted APIs. Still local-first: most of that list is a local
+server, and the hosted option is there for when the model you need to test isn't
+one you can run.
+
+One difference worth knowing. Ollama reports real capabilities, so ChronoGuard
+can tell which models do native tool calling. The OpenAI API has no equivalent
+endpoint, so `OpenAICompatClient` assumes they all do. Narrow it if that's wrong
+for your server:
+
+```python
+OpenAICompatClient("http://localhost:8000", tool_models={"Qwen/Qwen2.5-7B-Instruct"})
+```
+
+Writing your own backend means satisfying the `ChatBackend` protocol: `chat`,
+`pick_model`, `supports_tools`, `list_models`, `model_names`, `is_available`,
+and a `host`.
+
 ## Measuring what filtering can't fix
 
 Everything above handles tool leakage. None of it touches what the model already

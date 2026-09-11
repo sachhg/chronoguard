@@ -1,5 +1,5 @@
 {
-  "note_count": 52,
+  "note_count": 53,
   "types": [
     "concept",
     "contract",
@@ -146,6 +146,24 @@
         "scenario-summary-schema"
       ],
       "source": "src/chronoguard/interception.py"
+    },
+    {
+      "id": "backend-protocol",
+      "path": "backend-protocol.md",
+      "title": "Any four-method client can drive ChronoGuard",
+      "type": "contract",
+      "description": "ChatBackend is the whole model-server surface; OllamaClient and OpenAICompatClient both satisfy it.",
+      "tags": [
+        "backends",
+        "api",
+        "ollama"
+      ],
+      "links": [
+        "adapter-interface",
+        "slow-model-is-not-an-absent-server",
+        "module-map"
+      ],
+      "source": "src/chronoguard/backends.py"
     },
     {
       "id": "boundary-rule-is-exclusive",
@@ -498,7 +516,8 @@
         "repo-conventions",
         "circular-import-via-package-root",
         "typer-collapses-single-command-apps",
-        "check-is-the-no-model-path"
+        "check-is-the-no-model-path",
+        "backend-protocol"
       ],
       "source": "src/chronoguard/"
     },
@@ -751,7 +770,8 @@
       ],
       "links": [
         "thinking-models-and-the-think-flag",
-        "run-the-test-suites"
+        "run-the-test-suites",
+        "backend-protocol"
       ],
       "source": "src/chronoguard/ollama.py"
     },

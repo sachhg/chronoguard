@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-52 notes.
+53 notes.
 
 ## concept
 
@@ -52,6 +52,7 @@ Shapes and interfaces other code depends on.
 - [adapter-interface](adapter-interface.md) The three adapter kinds and when each applies.
 - [async-tools-are-awaited-then-filtered](async-tools-are-awaited-then-filtered.md) Wrapping an async def returns an awaitable; filtering happens inside it, after the await.
 - [audit-log-is-the-reporting-side](audit-log-is-the-reporting-side.md) Share one log across an agent's tools; that is where filtered counts come from.
+- [backend-protocol](backend-protocol.md) ChatBackend is the whole model-server surface; OllamaClient and OpenAICompatClient both satisfy it.
 - [claim-and-answer-matching](claim-and-answer-matching.md) Matching rules used by the probe, including the short-answer token rule.
 - [claim-label-meanings](claim-label-meanings.md) grounded, ungrounded-but-benign, suspected-parametric-leak, plus the unclassified escape hatch.
 - [evidence-record-contract](evidence-record-contract.md) Fields, the two constructors, and when to use which.

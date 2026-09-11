@@ -5,7 +5,8 @@ A general-purpose, point-in-time leakage guard for LLM agents.
 ChronoGuard runs any LLM agent as if it were operating at a specific past date,
 then measures how well that blinding actually holds. It's domain-agnostic and
 isn't tied to any agent framework. The primary target is local models served by
-[Ollama](https://ollama.com).
+[Ollama](https://ollama.com), and anything speaking the OpenAI
+chat-completions API works too (vLLM, LM Studio, llama.cpp, OpenRouter).
 
 ## Why two layers
 
