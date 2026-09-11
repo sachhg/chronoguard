@@ -217,6 +217,19 @@ probe's controls passed, so the tests can't go green because nothing happened.
 Working end to end, and early. The filter, interception, agent runner, probe,
 claim classifier and reporting are all in place with tests.
 
+New in 0.2.0:
+
+- **Revision filtering.** A page published before the as-of date and edited
+  after it is now rejected. Filtering on the creation date alone is how a 2022
+  wiki page rewritten in 2024 reaches the agent.
+- **Async tools.** Wrapping an `async def` works; you await the guarded version.
+- **`chronoguard check` and `chronoguard cases`.** Two commands that need no
+  model at all, for finding out whether your corpus and your probe questions can
+  support a run before you spend one.
+- **`--fail-on`.** Both of those, and `report`, can fail a build.
+- **Other backends.** Anything speaking the OpenAI chat-completions API, so
+  vLLM, LM Studio, llama.cpp and the hosted APIs all work.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
