@@ -67,6 +67,7 @@ from chronoguard.interception import (
     guarded_tool,
 )
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
+from chronoguard.preflight import CorpusReport, inspect_corpus, load_rows
 from chronoguard.probe import (
     CutoffRisk,
     LeakageProbe,
@@ -87,6 +88,7 @@ __all__ = [
     "ClaimClassifier",
     "ClaimLabel",
     "ClaimReport",
+    "CorpusReport",
     "CutoffRisk",
     "EvidenceAdapter",
     "EvidenceRecord",
@@ -113,8 +115,10 @@ __all__ = [
     "guard_records",
     "guard_tool",
     "guarded_tool",
+    "inspect_corpus",
     "load_model_cutoffs",
     "load_probe_cases",
+    "load_rows",
     "parse_timestamp",
     "run_agent",
     "run_scenario",

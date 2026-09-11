@@ -62,10 +62,9 @@ RISK: ELEVATED
   - the model's training data runs past the simulated date (2024-08-01), so filtering cannot blind it
 
 TOOL LEAKAGE (contained by filtering)
-  2 tool call(s), 15 record(s) retrieved
-  kept 7, filtered 8  (allowed=7, future=5, undated=2, unparseable=1)
-    web_search          10 seen,   5 kept,   5 filtered
-    document_store       5 seen,   2 kept,   3 filtered
+  1 tool call(s), 3 record(s) retrieved
+  kept 2, filtered 1  (allowed=2, revised=1)
+    document_store       3 seen,   2 kept,   1 filtered
 
 PARAMETRIC LEAKAGE (measured, not contained)
   leakage 2/8 (25%), control 6/6 (100%), risk elevated
@@ -75,15 +74,23 @@ PARAMETRIC LEAKAGE (measured, not contained)
     nobel-peace-2023       expected 'Narges Mohammadi'
 
 CLAIMS IN THE ANSWER
-  6 claim(s): 5 grounded, 1 benign, 0 suspected leak(s), groundedness 100%
+  5 claim(s): 5 grounded, 0 benign, 0 suspected leak(s), groundedness 100%
+
+ANSWER
+  As of May 20th, 2023, there is no finalized ship date for Meridian and no
+  agreement on pricing per seat or depot.
 ```
 
 Read that carefully, because it's the case the project exists for. The filter
-worked: 8 of 15 retrieved records withheld. The answer is clean: every factual
-claim traces back to evidence, nothing leaked into the output. And the run still
-isn't `low`, because the same model asked directly with no documents at all
-hands over two facts from after the as-of date, and its training runs a year
-past the moment being simulated.
+worked, and the one record it withheld is the interesting kind: a launch FAQ
+created in February and quietly edited in October, whose current text gives away
+the ship date. Its creation date is clean. Filtering on that alone hands it
+straight to the agent.
+
+The answer is clean too: every factual claim traces back to evidence, nothing
+leaked into the output. And the run still isn't `low`, because the same model
+asked directly with no documents at all hands over two facts from after the
+as-of date, and its training runs a year past the moment being simulated.
 
 A tool that printed only the first and third sections would call this run fine.
 It wasn't fine, it was lucky.

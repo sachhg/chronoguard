@@ -13,8 +13,9 @@ from chronoguard._version import __version__
 from chronoguard.agent import AgentConfig, run_agent
 from chronoguard.fixtures import FIXTURE_AS_OF, build_fixture_toolset
 from chronoguard.guard import GuardPolicy, TemporalGuard
-from chronoguard.interception import AuditLog
+from chronoguard.interception import AuditLog, MappingAdapter
 from chronoguard.ollama import OllamaClient, OllamaTimeout, OllamaUnavailable
+from chronoguard.preflight import inspect_corpus, load_rows
 from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
 from chronoguard.report import ScenarioConfig, run_scenario
 
@@ -56,6 +57,74 @@ def root(
 def version() -> None:
     """Print the installed ChronoGuard version."""
     typer.echo(__version__)
+
+
+@app.command()
+def check(
+    corpus: Annotated[str, typer.Argument(help="JSON or JSONL file holding your records.")],
+    as_of: Annotated[
+        str, typer.Option("--as-of", help="The instant to simulate. Needs a timezone offset.")
+    ] = FIXTURE_AS_OF,
+    published_key: Annotated[
+        Optional[str], typer.Option(help="Field holding the publication timestamp.")
+    ] = None,
+    updated_key: Annotated[
+        Optional[str], typer.Option(help="Field holding the last-revision timestamp.")
+    ] = None,
+    source_key: Annotated[Optional[str], typer.Option(help="Field holding a stable id.")] = None,
+    content_key: Annotated[Optional[str], typer.Option(help="Field holding the text.")] = None,
+    results_key: Annotated[
+        Optional[str], typer.Option(help="Key to dig into when the file is a wrapper object.")
+    ] = None,
+    policy: Annotated[str, typer.Option(help="strict or warn.")] = "strict",
+    revisions: Annotated[str, typer.Option(help="reject or ignore.")] = "reject",
+    allow_undated: Annotated[
+        bool, typer.Option("--allow-undated", help="Admit records with no usable date.")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
+) -> None:
+    """Show what the guard would do to a corpus, without running a model.
+
+    No Ollama, no network. Point it at your data before you spend a model call,
+    because the two states that waste a run (everything dropped, nothing
+    dropped) both look fine from a distance.
+    """
+    try:
+        guard = TemporalGuard(
+            as_of,
+            policy=GuardPolicy(policy),
+            allow_undated=allow_undated,
+            revisions=revisions,
+        )
+        rows = load_rows(corpus, results_key=results_key)
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    adapter = MappingAdapter(
+        results_key=None,
+        **{
+            key: value
+            for key, value in (
+                ("content_key", content_key),
+                ("source_key", source_key),
+                ("published_key", published_key),
+                ("updated_key", updated_key),
+            )
+            if value
+        },
+    )
+
+    report = inspect_corpus(rows, as_of, adapter=adapter, guard=guard, source=corpus)
+
+    if as_json:
+        typer.echo(json.dumps(report.summary(), indent=2))
+        return
+
+    typer.echo(report.render())
+    if report.errors:
+        typer.echo("")
+        typer.secho("This corpus would not produce a meaningful run.", fg=typer.colors.RED)
 
 
 @app.command()

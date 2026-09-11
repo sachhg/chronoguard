@@ -318,3 +318,139 @@ class TestOllamaErrorAdvice:
         result = runner.invoke(app, command)
         assert result.exit_code == 1
         assert "ollama serve" in plain(result)
+
+
+class TestCheckCommand:
+    """`chronoguard check` is the one command that never needs a model."""
+
+    AS_OF = "2023-06-01T00:00:00Z"
+    BEFORE = "2023-01-15T00:00:00Z"
+    AFTER = "2023-09-15T00:00:00Z"
+
+    def corpus(self, tmp_path, rows, name="corpus.json"):
+        path = tmp_path / name
+        path.write_text(json.dumps(rows), encoding="utf-8")
+        return str(path)
+
+    def straddling(self, tmp_path):
+        return self.corpus(tmp_path, [
+            {"id": "a", "content": "old", "published_at": self.BEFORE},
+            {"id": "b", "content": "old", "published_at": self.BEFORE},
+            {"id": "c", "content": "new", "published_at": self.AFTER},
+        ])
+
+    def test_it_runs_with_no_ollama_at_all(self, tmp_path, monkeypatch) -> None:
+        # The point of the command. Make any Ollama call explode so a
+        # regression that reintroduces one fails loudly.
+        def boom(*args, **kwargs):
+            raise AssertionError("check must not touch Ollama")
+
+        monkeypatch.setattr(cli.OllamaClient, "__init__", boom)
+        result = runner.invoke(app, ["check", self.straddling(tmp_path), "--as-of", self.AS_OF])
+        assert result.exit_code == 0
+
+    def test_it_reports_the_counts(self, tmp_path) -> None:
+        result = runner.invoke(app, ["check", self.straddling(tmp_path), "--as-of", self.AS_OF])
+        out = plain(result)
+        assert "rows     3" in out
+        assert "kept     2" in out
+        assert "dropped  1" in out
+
+    def test_json_output_parses(self, tmp_path) -> None:
+        result = runner.invoke(
+            app, ["check", self.straddling(tmp_path), "--as-of", self.AS_OF, "--json"]
+        )
+        payload = json.loads(plain(result))
+        assert payload["kept"] == 2
+        assert payload["usable"] is True
+
+    def test_a_missing_file_exits_two(self, tmp_path) -> None:
+        result = runner.invoke(app, ["check", str(tmp_path / "nope.json")])
+        assert result.exit_code == 2
+
+    def test_a_bad_as_of_exits_two(self, tmp_path) -> None:
+        result = runner.invoke(app, ["check", self.straddling(tmp_path), "--as-of", "2023-06-01"])
+        assert result.exit_code == 2
+
+    def test_an_all_past_corpus_says_the_run_proves_nothing(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, [{"id": "a", "content": "x", "published_at": self.BEFORE}])
+        out = plain(runner.invoke(app, ["check", path, "--as-of", self.AS_OF]))
+        assert "drops nothing" in out
+        assert "would not produce a meaningful run" in out
+
+    def test_custom_field_names_are_honoured(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, [
+            {"ref": "a", "body": "x", "issued": self.BEFORE},
+            {"ref": "b", "body": "y", "issued": self.AFTER},
+        ])
+        out = plain(runner.invoke(app, [
+            "check", path, "--as-of", self.AS_OF,
+            "--published-key", "issued", "--source-key", "ref", "--content-key", "body",
+        ]))
+        assert "kept     1" in out
+        assert "published=issued" in out
+
+    def test_an_unmapped_revision_field_is_flagged(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE, "last_modified": self.AFTER},
+            {"id": "b", "content": "y", "published_at": self.BEFORE, "last_modified": self.AFTER},
+            {"id": "c", "content": "z", "published_at": self.AFTER, "last_modified": self.AFTER},
+        ])
+        out = plain(runner.invoke(app, ["check", path, "--as-of", self.AS_OF]))
+        assert "--updated-key last_modified" in out
+
+    def test_mapping_the_revision_field_changes_the_verdict(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE, "mod": self.AFTER},
+            {"id": "b", "content": "y", "published_at": self.BEFORE, "mod": self.BEFORE},
+        ])
+        args = ["check", path, "--as-of", self.AS_OF]
+        assert "kept     2" in plain(runner.invoke(app, args))
+        assert "kept     1" in plain(runner.invoke(app, [*args, "--updated-key", "mod"]))
+
+    def test_revisions_can_be_ignored(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE, "mod": self.AFTER},
+            {"id": "b", "content": "y", "published_at": self.AFTER, "mod": self.AFTER},
+        ])
+        args = ["check", path, "--as-of", self.AS_OF, "--updated-key", "mod"]
+        assert "kept     0" in plain(runner.invoke(app, args))
+        assert "kept     1" in plain(runner.invoke(app, [*args, "--revisions", "ignore"]))
+
+    def test_jsonl_is_accepted(self, tmp_path) -> None:
+        path = tmp_path / "corpus.jsonl"
+        path.write_text(
+            "\n".join(json.dumps(r) for r in [
+                {"id": "a", "content": "x", "published_at": self.BEFORE},
+                {"id": "b", "content": "y", "published_at": self.AFTER},
+            ]),
+            encoding="utf-8",
+        )
+        assert "rows     2" in plain(runner.invoke(app, ["check", str(path), "--as-of", self.AS_OF]))
+
+    def test_a_wrapper_object_needs_a_results_key_when_ambiguous(self, tmp_path) -> None:
+        path = self.corpus(tmp_path, {
+            "items": [{"id": "a", "content": "x", "published_at": self.BEFORE}],
+            "related": [{"id": "b", "content": "y", "published_at": self.AFTER}],
+        })
+        assert runner.invoke(app, ["check", path, "--as-of", self.AS_OF]).exit_code == 2
+        ok = runner.invoke(app, ["check", path, "--as-of", self.AS_OF, "--results-key", "items"])
+        assert ok.exit_code == 0
+
+    def test_the_packaged_fixture_corpus_passes_its_own_check(self, tmp_path) -> None:
+        # Dogfooding: the corpora the project ships should look healthy to the
+        # tool the project ships.
+        from importlib import resources
+
+        path = tmp_path / "web.json"
+        path.write_text(
+            resources.files("chronoguard.fixtures.data").joinpath("web_corpus.json").read_text(),
+            encoding="utf-8",
+        )
+        out = plain(runner.invoke(app, [
+            "check", str(path), "--as-of", self.AS_OF,
+            "--published-key", "date", "--updated-key", "modified",
+            "--source-key", "url", "--content-key", "title",
+        ]))
+        assert "would not produce a meaningful run" not in out
+        assert "revised=1" in out
