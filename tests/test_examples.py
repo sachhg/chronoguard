@@ -46,6 +46,28 @@ class TestCorpus:
         verdicts = {guard.judge(r).verdict for r in archive.adapter.to_records({"items": archive.rows})}
         assert verdicts == set(Verdict), f"corpus lost coverage of {set(Verdict) - verdicts}"
 
+    def test_a_standing_note_was_amended_after_the_cutoff(self, archive: CouncilArchive) -> None:
+        guard = TemporalGuard(AS_OF)
+        records = archive.adapter.to_records({"items": archive.rows})
+        revised = [r for r in records if guard.judge(r).verdict is Verdict.REVISED]
+        assert revised, "the corpus lost its amended note"
+        for record in revised:
+            assert record.published_at is not None and record.published_at < guard.as_of
+            assert [c for c in CANARIES if c in record.content], (
+                f"{record.source_id} is amended but gives nothing away"
+            )
+
+    def test_the_amended_note_leaks_if_revisions_are_ignored(self, archive: CouncilArchive) -> None:
+        lenient = TemporalGuard(AS_OF, revisions="ignore")
+        leaked = [
+            c
+            for r in archive.adapter.to_records({"items": archive.rows})
+            if lenient.allows(r)
+            for c in CANARIES
+            if c in r.content
+        ]
+        assert leaked, "filtering on published alone stopped leaking here"
+
     def test_canaries_only_appear_in_records_the_guard_rejects(self, archive: CouncilArchive) -> None:
         guard = TemporalGuard(AS_OF)
         for record in archive.adapter.to_records({"items": archive.rows}):

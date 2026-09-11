@@ -5,6 +5,11 @@ has never seen: a status wrapper around `items`, keyed on `ref` and `published`,
 with the text split across `headline` and `text`. That's what real tools are
 like, and it's why the adapter layer exists rather than everything being forced
 into one house format.
+
+It also carries an `amended` field, because council notes get revised in place.
+One standing note here was published months before the as-of date and amended
+long after it, and its current text gives the decision away. Mapping `amended`
+through `updated_key` is what stops it reaching the agent.
 """
 
 from __future__ import annotations
@@ -40,6 +45,7 @@ class CouncilArchive:
         content_key=("headline", "text"),
         source_key="ref",
         published_key="published",
+        updated_key="amended",
         results_key="items",
     )
 

@@ -16,6 +16,7 @@ from chronoguard.guard import (
     FilterResult,
     GuardPolicy,
     Judgement,
+    RevisionPolicy,
     TemporalGuard,
     Verdict,
     guard_records,
@@ -227,7 +228,13 @@ class TestFilterResult:
             rec("unparseable", "nope"),
         ]
         counts = TemporalGuard(AS_OF).filter(records).counts
-        assert counts == {"allowed": 1, "future": 1, "undated": 1, "unparseable": 1}
+        assert counts == {
+            "allowed": 1,
+            "future": 1,
+            "undated": 1,
+            "unparseable": 1,
+            "revised": 0,
+        }
 
     def test_judgement_order_matches_input_order(self) -> None:
         records = [rec(f"s{i}", datetime(2023, 1, 1, tzinfo=UTC)) for i in range(5)]
@@ -279,3 +286,116 @@ class TestRetrievedAt:
             retrieved_at="2026-01-01T00:00:00Z",
         )
         assert TemporalGuard(AS_OF).allows(record) is True
+
+
+def revised(
+    source_id: str,
+    published_at: object = None,
+    updated_at: object = None,
+    content: str = "body",
+) -> EvidenceRecord:
+    return EvidenceRecord.from_source(
+        content, source_id, published_at=published_at, updated_at=updated_at
+    )
+
+
+BEFORE = datetime(2023, 1, 1, tzinfo=UTC)
+AFTER = datetime(2024, 1, 1, tzinfo=UTC)
+
+
+class TestRevisions:
+    """A record published before as_of but edited after it is a leak.
+
+    Filtering on the creation date alone is how a 2022 wiki page rewritten in
+    2024 reaches the agent. See the module docstring in guard.py.
+    """
+
+    def test_default_rejects_a_record_edited_after_as_of(self) -> None:
+        judgement = TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, AFTER))
+        assert judgement.verdict is Verdict.REVISED
+        assert judgement.kept is False
+        assert judgement.is_violation
+
+    def test_the_reason_names_both_dates(self) -> None:
+        reason = TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, AFTER)).reason
+        assert "2023-01-01" in reason
+        assert "2024-01-01" in reason
+
+    def test_an_edit_before_as_of_is_still_allowed(self) -> None:
+        edited = datetime(2023, 3, 1, tzinfo=UTC)
+        assert TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, edited)).verdict is Verdict.ALLOWED
+
+    def test_the_revision_boundary_is_exclusive_too(self) -> None:
+        # Same rule as published_at: exactly at as_of is rejected.
+        assert TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, AS_OF)).verdict is Verdict.REVISED
+
+    def test_a_record_with_no_revision_date_is_untouched(self) -> None:
+        assert TemporalGuard(AS_OF).judge(revised("plain", BEFORE)).verdict is Verdict.ALLOWED
+
+    def test_ignore_restores_publication_only_filtering(self) -> None:
+        guard = TemporalGuard(AS_OF, revisions="ignore")
+        assert guard.judge(revised("wiki", BEFORE, AFTER)).verdict is Verdict.ALLOWED
+
+    def test_ignore_accepts_the_enum_too(self) -> None:
+        guard = TemporalGuard(AS_OF, revisions=RevisionPolicy.IGNORE)
+        assert guard.revisions is RevisionPolicy.IGNORE
+
+    def test_unknown_revision_policy_is_refused(self) -> None:
+        with pytest.raises(ValueError):
+            TemporalGuard(AS_OF, revisions="maybe")
+
+    def test_default_is_reject(self) -> None:
+        assert TemporalGuard(AS_OF).revisions is RevisionPolicy.REJECT
+
+    def test_repr_names_the_revision_policy(self) -> None:
+        assert "revisions='reject'" in repr(TemporalGuard(AS_OF))
+
+    def test_a_future_publication_stays_future(self) -> None:
+        # Already dropped on its publication date. Reporting REVISED on top
+        # would bury the more fundamental problem.
+        judgement = TemporalGuard(AS_OF).judge(revised("wiki", AFTER, AFTER))
+        assert judgement.verdict is Verdict.FUTURE
+
+    def test_undated_stays_undated_when_undated_is_not_allowed(self) -> None:
+        judgement = TemporalGuard(AS_OF).judge(revised("wiki", None, AFTER))
+        assert judgement.verdict is Verdict.UNDATED
+
+    def test_an_admitted_undated_record_is_still_checked_for_edits(self) -> None:
+        # allow_undated is the dangerous switch. It should not also wave
+        # through a page we can see was rewritten after the cutoff.
+        guard = TemporalGuard(AS_OF, allow_undated=True)
+        assert guard.judge(revised("wiki", None, AFTER)).verdict is Verdict.REVISED
+        assert guard.judge(revised("wiki", None, BEFORE)).verdict is Verdict.UNDATED
+
+    def test_warn_keeps_a_revised_record_but_still_flags_it(self) -> None:
+        judgement = TemporalGuard(AS_OF, policy=GuardPolicy.WARN).judge(
+            revised("wiki", BEFORE, AFTER)
+        )
+        assert judgement.kept is True
+        assert judgement.verdict is Verdict.REVISED
+        assert judgement.is_violation
+
+    def test_warn_and_strict_diagnose_identically(self) -> None:
+        # warn changes what the agent sees, not what the guard concludes.
+        record = revised("wiki", BEFORE, AFTER)
+        strict = TemporalGuard(AS_OF).judge(record)
+        warn = TemporalGuard(AS_OF, policy=GuardPolicy.WARN).judge(record)
+        assert strict.verdict is warn.verdict
+
+    def test_revised_records_are_counted_separately(self) -> None:
+        records = [revised("a", BEFORE), revised("b", BEFORE, AFTER), revised("c", AFTER)]
+        counts = TemporalGuard(AS_OF).filter(records).counts
+        assert counts["allowed"] == 1
+        assert counts["revised"] == 1
+        assert counts["future"] == 1
+
+    def test_revision_dates_are_compared_across_timezones(self) -> None:
+        # 2023-06-01T02:00 IST is 2023-05-31T20:30Z, before as_of.
+        edited = datetime(2023, 6, 1, 2, 0, tzinfo=IST)
+        assert TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, edited)).verdict is Verdict.ALLOWED
+
+    def test_an_unparseable_revision_date_does_not_reject_a_clean_record(self) -> None:
+        # We can't prove it was edited after as_of, and published_at is fine.
+        # Rejecting here would punish every corpus with one junk field.
+        judgement = TemporalGuard(AS_OF).judge(revised("wiki", BEFORE, "last tuesday"))
+        assert judgement.verdict is Verdict.ALLOWED

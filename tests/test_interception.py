@@ -338,7 +338,13 @@ class TestAuditLog:
 
     def test_verdict_counts_are_summed(self, guard: TemporalGuard, audit: AuditLog) -> None:
         guard_tool(hits, guard, WEB_ADAPTER, audit=audit)()
-        assert audit.counts == {"allowed": 1, "future": 2, "undated": 1, "unparseable": 1}
+        assert audit.counts == {
+            "allowed": 1,
+            "future": 2,
+            "undated": 1,
+            "unparseable": 1,
+            "revised": 0,
+        }
 
     def test_empty_log(self, audit: AuditLog) -> None:
         assert audit.call_count == 0
@@ -362,3 +368,42 @@ class TestAuditLog:
         blob = audit.model_dump_json()
         assert "u1" in blob
         assert isinstance(ToolCall.model_validate(audit.calls[0].model_dump()), ToolCall)
+
+
+class TestMappingAdapterRevisions:
+    def test_the_revision_field_is_off_until_named(self) -> None:
+        row = [{"url": "u", "content": "c", "date": BEFORE, "modified": AFTER}]
+        assert MappingAdapter(source_key="url").to_records(row)[0].updated_at is None
+
+    def test_naming_it_maps_it(self) -> None:
+        row = [{"url": "u", "content": "c", "date": BEFORE, "modified": AFTER}]
+        adapter = MappingAdapter(source_key="url", published_key="date", updated_key="modified")
+        assert adapter.to_records(row)[0].updated_at == datetime(2023, 9, 15, tzinfo=UTC)
+
+    def test_an_unnamed_revision_field_lands_in_metadata_instead(self) -> None:
+        row = [{"url": "u", "content": "c", "date": BEFORE, "modified": AFTER}]
+        record = MappingAdapter(source_key="url", published_key="date").to_records(row)[0]
+        assert record.metadata["modified"] == AFTER
+
+    def test_a_named_revision_field_is_consumed_not_duplicated(self) -> None:
+        row = [{"url": "u", "content": "c", "date": BEFORE, "modified": AFTER}]
+        adapter = MappingAdapter(source_key="url", published_key="date", updated_key="modified")
+        assert "modified" not in adapter.to_records(row)[0].metadata
+
+    def test_several_candidate_keys_take_the_first_hit(self) -> None:
+        row = [{"url": "u", "content": "c", "date": BEFORE, "last_modified": AFTER}]
+        adapter = MappingAdapter(
+            source_key="url", published_key="date", updated_key=("modified", "last_modified")
+        )
+        assert adapter.to_records(row)[0].updated_at == datetime(2023, 9, 15, tzinfo=UTC)
+
+    def test_a_revised_row_is_dropped_end_to_end(self, guard: TemporalGuard) -> None:
+        def wiki() -> list[dict]:
+            return [
+                {"url": "stable", "content": "c", "date": BEFORE},
+                {"url": "edited", "content": "REVISED-TOKEN", "date": BEFORE, "modified": AFTER},
+            ]
+
+        adapter = MappingAdapter(source_key="url", published_key="date", updated_key="modified")
+        kept = guard_tool(wiki, guard, adapter)()
+        assert [r.source_id for r in kept] == ["stable"]

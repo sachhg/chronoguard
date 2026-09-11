@@ -21,6 +21,14 @@
     "domain": "ledger-weekly.example"
   },
   {
+    "url": "https://ledger-weekly.example/meridian-what-we-know",
+    "title": "Meridian: what we know so far",
+    "snippet": "A running explainer on Halden's scheduling platform. Updated with confirmed pricing: Meridian lists at $4,900 per seat per year. Earlier drafts of this piece guessed considerably lower.",
+    "date": "2023-04-11T08:00:00Z",
+    "modified": "2023-09-28T16:40:00Z",
+    "domain": "ledger-weekly.example"
+  },
+  {
     "url": "https://tildepress.example/halden-platform-vp",
     "title": "Halden hires a platform VP ahead of the Meridian rollout",
     "snippet": "Halden Systems has hired a VP of Platform from a rival scheduling vendor, a signal that the Meridian rollout is being taken seriously internally.",

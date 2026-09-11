@@ -92,6 +92,37 @@ class TestCorpusDesign:
                     undated_canaries += 1
         assert undated_canaries >= 2
 
+    def test_each_corpus_has_a_document_edited_after_the_cutoff(
+        self, guard: TemporalGuard
+    ) -> None:
+        # Published before as_of, rewritten after it. A guard reading only the
+        # creation date hands these to the agent. If they vanish, updated_key
+        # stops being exercised end to end.
+        for tool in (FakeWebSearch(), FakeDocumentStore()):
+            revised = [
+                r
+                for r in tool.adapter.to_records(tool.rows)
+                if guard.judge(r).verdict is Verdict.REVISED
+            ]
+            assert revised, f"{type(tool).__name__} lost its revised document"
+            for record in revised:
+                assert record.published_at is not None
+                assert record.published_at < guard.as_of
+                assert canaries_in(record.content), (
+                    f"{record.source_id} is revised but carries no post-as-of fact, "
+                    "so dropping it proves nothing"
+                )
+
+    def test_the_revised_documents_leak_if_revisions_are_ignored(self) -> None:
+        # The whole argument for the reject default in one assertion.
+        lenient = TemporalGuard(FIXTURE_AS_OF, revisions="ignore")
+        leaked = []
+        for tool in (FakeWebSearch(), FakeDocumentStore()):
+            for record in tool.adapter.to_records(tool.rows):
+                if lenient.allows(record):
+                    leaked += canaries_in(record.content)
+        assert leaked, "publication-date-only filtering stopped leaking, the default is now moot"
+
     def test_pre_as_of_documents_contain_the_plausible_wrong_answer(self) -> None:
         # An agent that reads the evidence should guess "below $3,000" and
         # "summer". An agent leaking from weights says "$4,900" and "October 14".

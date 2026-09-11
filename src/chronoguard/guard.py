@@ -20,6 +20,29 @@ nothing. Admitting a day's worth of hindsight costs you the whole experiment.
 
 If you actually want everything up to the end of a day, say so in `as_of`: pass
 `2023-06-02T00:00:00Z` rather than the 1st.
+
+## Revisions
+
+`published_at` alone is not enough for mutable sources. A wiki page created in
+2022 and rewritten in 2024 has a 2022 publication date and 2024 content, and a
+guard that only reads the creation date hands the agent two years of hindsight.
+Confluence, Notion, SharePoint, Git and every CMS worth the name carry a
+modified date; the fix is to use it.
+
+So when a record has an `updated_at` later than as_of, the default is to reject
+it under `Verdict.REVISED`, on the same exclusive boundary. Pass
+`revisions="ignore"` to filter on publication date only.
+
+This costs nothing on an immutable corpus, because a record with no `updated_at`
+is unaffected. You only see the new verdict once your adapter starts mapping a
+revision field.
+
+One asymmetry worth knowing about. An unparseable `published_at` gets the record
+rejected, because nothing then shows the content predates the cutoff. An
+unparseable `updated_at` on an otherwise clean record does not, because
+`published_at` already proved the content existed in time and all we've lost is
+whether it was later edited. Rejecting there would gut any real corpus over a
+few junk fields. `chronoguard check` counts them so they don't go unnoticed.
 """
 
 from __future__ import annotations
@@ -33,7 +56,14 @@ from pydantic import BaseModel, ConfigDict
 
 from chronoguard.evidence import EvidenceRecord, parse_timestamp
 
-__all__ = ["FilterResult", "GuardPolicy", "Judgement", "TemporalGuard", "Verdict"]
+__all__ = [
+    "FilterResult",
+    "GuardPolicy",
+    "Judgement",
+    "RevisionPolicy",
+    "TemporalGuard",
+    "Verdict",
+]
 
 
 class GuardPolicy(str, Enum):
@@ -62,8 +92,22 @@ class Verdict(str, Enum):
     UNPARSEABLE = "unparseable"
     """A timestamp was supplied but it isn't a usable instant."""
 
+    REVISED = "revised"
+    """Published before as_of, but edited at or after it. The text the agent
+    would have read is not the text that existed at the as-of instant."""
+
 
 UNDATED_VERDICTS = frozenset({Verdict.UNDATED, Verdict.UNPARSEABLE})
+
+
+class RevisionPolicy(str, Enum):
+    """What to do about a record's `updated_at`."""
+
+    REJECT = "reject"
+    """Treat an edit at or after as_of as a boundary violation."""
+
+    IGNORE = "ignore"
+    """Filter on publication date only. Pre-0.2 behaviour."""
 
 
 class Judgement(BaseModel):
@@ -156,6 +200,10 @@ class TemporalGuard:
         allow_undated: Off by default. Records with no usable publication
             timestamp are rejected, because you can't prove they predate the
             cutoff. Turn it on only when you know your corpus.
+        revisions: `reject` (the default) treats an `updated_at` at or after
+            as_of as a violation, because the agent would be reading text that
+            didn't exist yet. `ignore` filters on publication date only.
+            Records with no `updated_at` are unaffected either way.
     """
 
     def __init__(
@@ -164,6 +212,7 @@ class TemporalGuard:
         *,
         policy: GuardPolicy | str = GuardPolicy.STRICT,
         allow_undated: bool = False,
+        revisions: RevisionPolicy | str = RevisionPolicy.REJECT,
     ) -> None:
         parsed = parse_timestamp(as_of)
         if parsed is None:
@@ -174,11 +223,13 @@ class TemporalGuard:
         self.as_of = parsed
         self.policy = GuardPolicy(policy)
         self.allow_undated = allow_undated
+        self.revisions = RevisionPolicy(revisions)
 
     def __repr__(self) -> str:
         return (
             f"TemporalGuard(as_of={self.as_of.isoformat()!r}, "
-            f"policy={self.policy.value!r}, allow_undated={self.allow_undated})"
+            f"policy={self.policy.value!r}, allow_undated={self.allow_undated}, "
+            f"revisions={self.revisions.value!r})"
         )
 
     def judge(self, record: EvidenceRecord) -> Judgement:
@@ -204,6 +255,26 @@ class TemporalGuard:
         return self.judge(record).kept
 
     def _assess(self, record: EvidenceRecord) -> tuple[Verdict, str]:
+        verdict, reason = self._assess_published(record)
+        if not self._admissible(verdict):
+            # The publication date already sank it. Naming the revision on top
+            # of that buries the more fundamental problem, so leave the first
+            # reason standing.
+            return verdict, reason
+        return self._assess_revision(record, verdict, reason)
+
+    def _admissible(self, verdict: Verdict) -> bool:
+        """Whether this verdict clears the publication check on its own merits.
+
+        Deliberately not `_keep`: under `warn` everything is kept, and warn is
+        meant to change what the agent sees, not what the guard diagnoses. A
+        revised record gets the same verdict under both policies.
+        """
+        if verdict is Verdict.ALLOWED:
+            return True
+        return self.allow_undated and verdict in UNDATED_VERDICTS
+
+    def _assess_published(self, record: EvidenceRecord) -> tuple[Verdict, str]:
         published = record.published_at
         if published is None:
             verdict = Verdict.UNPARSEABLE if record.published_at_raw else Verdict.UNDATED
@@ -220,6 +291,24 @@ class TemporalGuard:
             Verdict.FUTURE,
             f"published {published.isoformat()}, {relation} as_of "
             f"{self.as_of.isoformat()} (boundary is exclusive)",
+        )
+
+    def _assess_revision(
+        self, record: EvidenceRecord, verdict: Verdict, reason: str
+    ) -> tuple[Verdict, str]:
+        """Escalate a would-be-kept record that was edited after as_of."""
+        if self.revisions is RevisionPolicy.IGNORE:
+            return verdict, reason
+
+        updated = record.updated_at
+        if updated is None or updated < self.as_of:
+            return verdict, reason
+
+        relation = "at" if updated == self.as_of else "after"
+        return (
+            Verdict.REVISED,
+            f"{reason}, but last edited {updated.isoformat()}, {relation} as_of "
+            f"{self.as_of.isoformat()}, so its text carries hindsight",
         )
 
     def _keep(self, verdict: Verdict) -> bool:

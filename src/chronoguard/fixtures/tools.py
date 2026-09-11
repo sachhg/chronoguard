@@ -14,6 +14,9 @@ The corpora are built around `FIXTURE_AS_OF` (2023-06-01T00:00:00Z):
   date, one with a junk date, one with a naive timestamp. Two of those carry
   post-as-of facts on purpose, so a guard that waves undated content through
   leaks immediately.
+* One document per corpus published well before the cutoff and then quietly
+  edited after it, carrying the answer in its current text. A guard that reads
+  only the creation date hands these straight to the agent.
 * Post-as-of documents holding the answers: the ship date, the real price, the
   acquisition. Those strings are listed in `POST_AS_OF_CANARIES`, so a test can
   just grep for them.
@@ -104,6 +107,7 @@ class FakeWebSearch:
         content_key=("title", "snippet"),
         source_key="url",
         published_key="date",
+        updated_key="modified",
     )
 
     def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
@@ -131,6 +135,7 @@ class FakeDocumentStore:
         content_key=("heading", "body"),
         source_key="doc_id",
         published_key="created_utc",
+        updated_key="updated_utc",
         results_key="matches",
     )
 

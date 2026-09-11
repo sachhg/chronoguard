@@ -101,6 +101,11 @@ class MappingAdapter:
             wins.
         published_key: Field holding the publication timestamp. Several may be
             given, first hit wins.
+        updated_key: Optional field holding the last-revision timestamp. Off by
+            default, so nothing changes until you name it. Name it on any
+            mutable source (a wiki, a CMS, a ticket tracker) and the guard will
+            reject pages edited after the as-of instant, which filtering on the
+            creation date alone lets straight through.
         retrieved_key: Optional field for when your pipeline fetched it.
         results_key: If the tool returns a wrapper dict like
             `{"results": [...]}`, the key to dig into.
@@ -117,6 +122,7 @@ class MappingAdapter:
         content_key: str | Sequence[str] = "content",
         source_key: str | Sequence[str] = ("source_id", "id", "url"),
         published_key: str | Sequence[str] = ("published_at", "published", "date"),
+        updated_key: str | Sequence[str] | None = None,
         retrieved_key: str | Sequence[str] | None = None,
         results_key: str | None = None,
         metadata_keys: Sequence[str] | None = None,
@@ -126,6 +132,7 @@ class MappingAdapter:
         self.content_keys = _as_tuple(content_key)
         self.source_keys = _as_tuple(source_key)
         self.published_keys = _as_tuple(published_key)
+        self.updated_keys = _as_tuple(updated_key) if updated_key else ()
         self.retrieved_keys = _as_tuple(retrieved_key) if retrieved_key else ()
         self.results_key = results_key
         self.metadata_keys = tuple(metadata_keys) if metadata_keys is not None else None
@@ -156,7 +163,7 @@ class MappingAdapter:
 
         parts = [str(item[k]) for k in self.content_keys if item.get(k) not in (None, "")]
         consumed = set(self.content_keys) | set(self.source_keys) | set(self.published_keys)
-        consumed |= set(self.retrieved_keys)
+        consumed |= set(self.updated_keys) | set(self.retrieved_keys)
 
         if self.metadata_keys is None:
             metadata = {k: v for k, v in item.items() if k not in consumed}
@@ -167,6 +174,7 @@ class MappingAdapter:
             self.separator.join(parts),
             str(_first(item, self.source_keys, default=f"record-{index}")),
             published_at=_first(item, self.published_keys),
+            updated_at=_first(item, self.updated_keys),
             retrieved_at=_first(item, self.retrieved_keys),
             metadata=metadata,
             assume_tz=self.assume_tz,
@@ -284,9 +292,8 @@ class AuditLog(BaseModel):
 class GuardedTool:
     """A tool callable with the temporal filter bolted onto its return value.
 
-    Call it exactly like the function it wraps. The name, docstring and
-    signature are copied across so agent frameworks can still build a schema
-    from it.
+    Call it exactly like the function it wraps. The name, docstring and signature are copied across
+    so agent frameworks can still build a schema from it.
 
     Args:
         fn: The real tool.

@@ -29,6 +29,12 @@ Wrap a tool so the agent can only ever see the survivors::
     @guarded_tool(guard, MappingAdapter(source_key="url", published_key="date"))
     def web_search(query: str) -> list[dict]:
         ...
+
+`async def` tools work the same way, you just await the wrapped version. On a
+mutable source, name the revision field too, or a page written in 2022 and
+rewritten in 2024 counts as 2022 content::
+
+    MappingAdapter(source_key="url", published_key="date", updated_key="modified")
 """
 
 from chronoguard._version import __version__
@@ -45,6 +51,7 @@ from chronoguard.guard import (
     FilterResult,
     GuardPolicy,
     Judgement,
+    RevisionPolicy,
     TemporalGuard,
     Verdict,
     guard_records,
@@ -95,6 +102,7 @@ __all__ = [
     "ProbeCase",
     "ProbeReport",
     "RecordAdapter",
+    "RevisionPolicy",
     "ScenarioConfig",
     "ScenarioReport",
     "TemporalGuard",

@@ -109,3 +109,85 @@ class TestEvidenceRecord:
     def test_unknown_fields_are_rejected(self) -> None:
         with pytest.raises(ValidationError):
             EvidenceRecord(content="x", source_id="s", typo_field=1)
+
+
+class TestRevisionTimestamps:
+    """`updated_at` is parsed by the same rules as every other date here."""
+
+    def test_it_parses_like_published_at(self) -> None:
+        record = EvidenceRecord.from_source(
+            "body", "doc", published_at="2023-01-01T00:00:00Z", updated_at="2024-02-03T04:05:06Z"
+        )
+        assert record.updated_at == datetime(2024, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    def test_it_defaults_to_none(self) -> None:
+        assert EvidenceRecord.from_source("body", "doc").updated_at is None
+
+    def test_a_naive_revision_date_is_not_an_instant(self) -> None:
+        record = EvidenceRecord.from_source("body", "doc", updated_at="2024-02-03T04:05:06")
+        assert record.updated_at is None
+        assert record.updated_at_raw == "2024-02-03T04:05:06"
+
+    def test_junk_is_kept_for_reporting(self) -> None:
+        record = EvidenceRecord.from_source("body", "doc", updated_at="last tuesday")
+        assert record.updated_at is None
+        assert record.updated_at_raw == "last tuesday"
+
+    def test_assume_tz_applies_to_it_too(self) -> None:
+        record = EvidenceRecord.from_source(
+            "body", "doc", updated_at="2024-02-03T00:00:00", assume_tz=timezone.utc
+        )
+        assert record.updated_at == datetime(2024, 2, 3, tzinfo=timezone.utc)
+
+    def test_a_bad_published_date_does_not_swallow_a_good_revision_date(self) -> None:
+        record = EvidenceRecord.from_source(
+            "body", "doc", published_at="nonsense", updated_at="2024-02-03T00:00:00Z"
+        )
+        assert record.published_at is None
+        assert record.published_at_raw == "nonsense"
+        assert record.updated_at is not None
+        assert record.updated_at_raw is None
+
+
+class TestIsRevised:
+    def test_no_revision_date_means_not_revised(self) -> None:
+        assert EvidenceRecord.from_source("b", "d", published_at="2023-01-01T00:00:00Z").is_revised is False
+
+    def test_a_later_edit_counts(self) -> None:
+        record = EvidenceRecord.from_source(
+            "b", "d", published_at="2023-01-01T00:00:00Z", updated_at="2023-02-01T00:00:00Z"
+        )
+        assert record.is_revised is True
+
+    def test_the_same_instant_is_not_a_revision(self) -> None:
+        # Plenty of systems stamp created and modified together on insert.
+        stamp = "2023-01-01T00:00:00Z"
+        record = EvidenceRecord.from_source("b", "d", published_at=stamp, updated_at=stamp)
+        assert record.is_revised is False
+
+    def test_an_edit_without_a_publication_date_counts(self) -> None:
+        record = EvidenceRecord.from_source("b", "d", updated_at="2023-02-01T00:00:00Z")
+        assert record.is_revised is True
+
+
+class TestLatestInstant:
+    def test_it_is_the_revision_when_there_is_one(self) -> None:
+        record = EvidenceRecord.from_source(
+            "b", "d", published_at="2023-01-01T00:00:00Z", updated_at="2023-02-01T00:00:00Z"
+        )
+        assert record.latest_instant == datetime(2023, 2, 1, tzinfo=timezone.utc)
+
+    def test_it_falls_back_to_the_publication_date(self) -> None:
+        record = EvidenceRecord.from_source("b", "d", published_at="2023-01-01T00:00:00Z")
+        assert record.latest_instant == datetime(2023, 1, 1, tzinfo=timezone.utc)
+
+    def test_it_is_none_when_nothing_is_dated(self) -> None:
+        assert EvidenceRecord.from_source("b", "d").latest_instant is None
+
+    def test_it_takes_the_max_not_the_last_field(self) -> None:
+        # A revision date older than the publication date is junk data, but
+        # "most recent moment we can prove" is still the publication date.
+        record = EvidenceRecord.from_source(
+            "b", "d", published_at="2023-05-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"
+        )
+        assert record.latest_instant == datetime(2023, 5, 1, tzinfo=timezone.utc)

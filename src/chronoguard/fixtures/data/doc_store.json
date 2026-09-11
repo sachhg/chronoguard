@@ -32,6 +32,15 @@
     "space": "launch"
   },
   {
+    "doc_id": "HAL-FAQ-009",
+    "heading": "Meridian launch FAQ",
+    "body": "Living page, kept current by the launch team. Q: when does Meridian ship? A: October 14. Q: is the migration tool ready? A: yes, signed off. Older revisions of this page said neither.",
+    "created_utc": "2023-02-08T09:30:00Z",
+    "updated_utc": "2023-10-02T11:12:00Z",
+    "author": "r.okafor",
+    "space": "launch"
+  },
+  {
     "doc_id": "HAL-SUP-021",
     "heading": "Support runbook draft",
     "body": "Escalation path for Meridian incidents. Note the seat entitlement check: customers on the $4,900 per seat plan get the two-hour response SLA.",
