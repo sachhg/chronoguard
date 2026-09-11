@@ -93,4 +93,4 @@ Traps, and bugs that already happened once.
 Orientation.
 
 - [module-map](module-map.md) One line per module and data file, in dependency order.
-- [repo-conventions](repo-conventions.md) Writing style, commit rules and test discipline; CLAUDE.md is the source of truth.
+- [repo-conventions](repo-conventions.md) Writing style, commit rules and test discipline for anyone touching this repo.

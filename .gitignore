@@ -26,3 +26,9 @@ htmlcov/
 # ChronoGuard run output
 out/
 *.chronoguard.json
+
+# Local working notes, not part of the published repo
+CLAUDE.md
+DESIGN.md
+PLAN.md
+.claude/

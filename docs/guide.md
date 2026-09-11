@@ -2,7 +2,7 @@
 
 The full walkthrough, layer by layer. If you just want to run the thing, the
 [README](../README.md) quickstart is enough. If you want to understand why it's
-built this way, read [DESIGN.md](../DESIGN.md) first.
+built this way, start with [two-leakage-channels](kb/two-leakage-channels.md).
 
 Reference material lives in [configuration.md](configuration.md), and
 [interpreting-reports.md](interpreting-reports.md) covers what to do with the
@@ -419,6 +419,5 @@ report.summary()
   every CLI flag, and the data files you can edit.
 - [interpreting-reports.md](interpreting-reports.md) for what a verdict means
   and what to do about it.
-- [DESIGN.md](../DESIGN.md) for the argument the project is built on.
 - [docs/kb/](kb/INDEX.md) if you are an agent working in this repo, or a human
   who wants the working detail rather than the narrative.

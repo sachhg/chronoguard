@@ -136,7 +136,6 @@ report.summary()          # the JSON summary
 - **[docs/configuration.md](docs/configuration.md)** is the full option reference.
 - **[docs/interpreting-reports.md](docs/interpreting-reports.md)** covers what a
   verdict means and what to do about it.
-- **[DESIGN.md](DESIGN.md)** is the argument the whole thing is built on.
 - **[examples/](examples/)** has a worked end-to-end scenario on your own corpus.
 - **[docs/kb/](docs/kb/INDEX.md)** is a knowledge base for agents working in this
   repo: atomic notes, cross-linked, loadable a few at a time.
@@ -163,8 +162,7 @@ probe's controls passed, so the tests can't go green because nothing happened.
 ## Status
 
 Working end to end, and early. The filter, interception, agent runner, probe,
-claim classifier and reporting are all in place with tests. See
-[PLAN.md](PLAN.md) for how it was built and what each phase covers.
+claim classifier and reporting are all in place with tests.
 
 ## License
 

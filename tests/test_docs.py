@@ -59,8 +59,6 @@ class TestLinks:
             "docs/configuration.md",
             "docs/interpreting-reports.md",
             "docs/kb/INDEX.md",
-            "DESIGN.md",
-            "PLAN.md",
             "LICENSE",
             "examples/",
         ):
@@ -75,7 +73,7 @@ class TestHouseStyle:
     @pytest.mark.parametrize("path", MARKDOWN, ids=ids)
     def test_no_llm_filler_vocabulary(self, path: Path) -> None:
         text = path.read_text(encoding="utf-8").lower()
-        # CLAUDE.md lists these as banned, so it is allowed to name them.
+        # An untracked local CLAUDE.md lists these as banned, so it may name them.
         if path.name == "CLAUDE.md":
             return
         assert [w for w in BANNED_WORDS if w in text] == []

@@ -614,7 +614,7 @@
       "path": "repo-conventions.md",
       "title": "Repo conventions in one place",
       "type": "map",
-      "description": "Writing style, commit rules and test discipline; CLAUDE.md is the source of truth.",
+      "description": "Writing style, commit rules and test discipline for anyone touching this repo.",
       "tags": [
         "conventions",
         "orientation"
@@ -623,7 +623,7 @@
         "module-map",
         "run-the-test-suites"
       ],
-      "source": "CLAUDE.md"
+      "source": "docs/kb/repo-conventions.md"
     },
     {
       "id": "run-the-test-suites",
@@ -762,7 +762,7 @@
         "prompt-is-not-containment",
         "verdict-never-reports-unearned-clean"
       ],
-      "source": "DESIGN.md"
+      "source": "docs/kb/two-leakage-channels.md"
     },
     {
       "id": "typer-collapses-single-command-apps",

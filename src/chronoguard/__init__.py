@@ -3,7 +3,7 @@
 ChronoGuard runs an LLM agent as if it were operating at a past date, then
 measures how well that blinding actually holds.
 
-Two separate leakage channels, handled separately (see DESIGN.md):
+Two separate leakage channels, handled separately (see docs/kb/two-leakage-channels.md):
 
 * **Tool leakage**: the agent retrieves evidence published after the as-of date.
   Fixable by filtering, which is `chronoguard.evidence` and `chronoguard.guard`.

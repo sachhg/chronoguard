@@ -5,7 +5,7 @@ type: concept
 description: The central model: tool leakage is containable, parametric leakage is only measurable.
 tags: [core, design]
 links: [containment-vs-measurement, prompt-is-not-containment, verdict-never-reports-unearned-clean]
-source: DESIGN.md
+source: docs/kb/two-leakage-channels.md
 ---
 Asking a model to reason as of a past date fails in two independent ways. They
 look identical from outside and need different fixes. Do not conflate them.

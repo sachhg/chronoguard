@@ -138,7 +138,7 @@ class TestIndex:
 class TestHouseStyle:
     @pytest.mark.parametrize("note", NOTES, ids=lambda n: n["id"])
     def test_no_em_dashes(self, note: dict) -> None:
-        # CLAUDE.md bans them everywhere, and the kb is not an exception.
+        # House style bans them everywhere, and the kb is not an exception.
         assert EM_DASH not in (KB / note["path"]).read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("note", NOTES, ids=lambda n: n["id"])

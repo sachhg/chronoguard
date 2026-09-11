@@ -2,7 +2,7 @@
 
 `TemporalGuard` takes a list of `EvidenceRecord`s and an as-of instant, and
 decides what the agent is allowed to see. This is the whole of Layer 1 (see
-DESIGN.md): it contains tool leakage and nothing else. It has no idea what the
+docs/kb/two-leakage-channels.md): it contains tool leakage and nothing else. It has no idea what the
 model knows.
 
 ## The boundary rule
