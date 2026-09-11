@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
+from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -376,6 +377,14 @@ class TestPackagedData:
         kinds = {c.kind_for(AS_OF) for c in cases}
         assert kinds == {"future", "control"}, "the set needs probes and controls to be useful"
 
+    def test_the_packaged_set_documents_its_newest_case(self) -> None:
+        blob = json.loads(
+            resources.files("chronoguard.data").joinpath("probe_cases.json").read_text("utf-8")
+        )
+        cases = load_probe_cases()
+        newest = max(c.knowable_from for c in cases)
+        assert blob["newest_knowable_from"] == newest.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     def test_cutoffs_load(self) -> None:
         cutoffs = load_model_cutoffs()
         assert cutoffs.cutoffs
@@ -543,6 +552,12 @@ class TestDescribeCases:
         report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
         assert report.nearest_future == ["new-1", "new-2", "new-3"]
 
+    def test_the_newest_case_date_is_reported(self) -> None:
+        report = describe_cases(self.spread(), "2023-01-01T00:00:00Z")
+        assert report.newest_knowable_from == datetime(2026, 1, 1, tzinfo=UTC)
+        assert "newest" in report.render()
+        assert report.summary()["newest_knowable_from"].startswith("2026-01-01")
+
     def test_a_healthy_set_is_usable(self) -> None:
         assert describe_cases(self.spread(), "2023-01-01T00:00:00Z").usable is True
 
@@ -553,6 +568,7 @@ class TestDescribeCases:
         assert report.errors
         assert report.usable is False
         assert "would read as blinded when nothing was measured" in self.messages(report)
+        assert "newest case is 2026-01-01" in self.messages(report)
 
     def test_no_control_cases_is_an_error(self) -> None:
         report = describe_cases(self.spread(), "2019-01-01T00:00:00Z")

@@ -706,6 +706,7 @@ class TestCasesCommand:
         out = plain(runner.invoke(app, ["cases", "--as-of", "2023-06-01T00:00:00Z"]))
         assert "future" in out
         assert "control" in out
+        assert "newest" in out
 
     def test_json_output_parses(self) -> None:
         payload = json.loads(plain(runner.invoke(app, ["cases", "--json"])))

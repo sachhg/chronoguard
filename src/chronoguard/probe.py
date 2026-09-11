@@ -280,6 +280,7 @@ class CaseSetReport(BaseModel):
     control: int
     topics: dict[str, int] = Field(default_factory=dict)
     nearest_future: list[str] = Field(default_factory=list)
+    newest_knowable_from: AwareDatetime | None = None
     issues: list[CaseIssue] = Field(default_factory=list)
 
     @property
@@ -302,6 +303,9 @@ class CaseSetReport(BaseModel):
             "usable": self.usable,
             "topics": self.topics,
             "nearest_future": self.nearest_future,
+            "newest_knowable_from": (
+                self.newest_knowable_from.isoformat() if self.newest_knowable_from else None
+            ),
             "issues": [
                 {"severity": i.severity, "case_id": i.case_id, "message": i.message}
                 for i in self.issues
@@ -321,6 +325,10 @@ class CaseSetReport(BaseModel):
             lines.append(f"  topics   {topics}")
         if self.nearest_future:
             lines.append(f"  nearest  {', '.join(self.nearest_future)}")
+        if self.newest_knowable_from is not None:
+            lines.append(
+                f"  newest   {self.newest_knowable_from.isoformat()}  (last case in this set)"
+            )
         if self.issues:
             lines.append("")
             lines += [i.render() for i in self.issues]
@@ -344,6 +352,7 @@ def describe_cases(
     for case in cases:
         topics[case.topic] = topics.get(case.topic, 0) + 1
 
+    newest = max(c.knowable_from for c in cases) if cases else None
     report = CaseSetReport(
         source=source,
         as_of=moment,
@@ -354,6 +363,7 @@ def describe_cases(
         # Nearest first, matching how a capped run selects them. See
         # docs/kb/capped-probe-runs-take-nearest-cases.md.
         nearest_future=[c.id for c in sorted(future, key=lambda c: c.knowable_from)[:3]],
+        newest_knowable_from=newest,
     )
     report.issues = _case_issues(cases, report)
     return report
@@ -385,12 +395,19 @@ def _case_issues(cases: list[ProbeCase], report: CaseSetReport) -> list[CaseIssu
             issues.append(CaseIssue(severity="error", case_id=case.id, message="empty question"))
 
     if report.future == 0:
+        past_newest = ""
+        if report.newest_knowable_from is not None:
+            past_newest = (
+                f"; the newest case is {report.newest_knowable_from.date().isoformat()}, "
+                "so pick an earlier as-of or extend the set"
+            )
         issues.append(
             CaseIssue(
                 severity="error",
                 message=(
                     f"no case is in the future at {report.as_of.date()}, so the probe would "
                     "score 0/0 and the run would read as blinded when nothing was measured"
+                    f"{past_newest}"
                 ),
             )
         )
