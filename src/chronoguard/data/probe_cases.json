@@ -151,6 +151,23 @@
       "topic": "science"
     },
     {
+      "id": "brk-newceo2026",
+      "question": "When did Greg Abel become the CEO of Berkshire Hathaway?",
+      "answer": "January 1, 2026",
+      "aliases": [
+        "Jan 1, 2026",
+        "January 1st, 2026",
+        "Jan 1st, 2026",
+        "01/01/2026",
+        "2026-01-01",
+        "01.01.2026",
+        "New Year's Day, 2026",
+        "The first of January, 2026"
+      ],
+      "knowable_from": "2025-05-04T00:00:00Z",
+      "topic": "business"
+    },
+    {
       "id": "pope-leo-xiv",
       "question": "A new pope was elected in May 2025. What regnal name did he take?",
       "answer": "Leo XIV",
@@ -193,6 +210,57 @@
       ],
       "knowable_from": "2025-10-10T00:00:00Z",
       "topic": "world events"
+    },
+    {
+      "id": "apple-newceo2026",
+      "question": "When did Tim Cook step down as CEO of Apple?",
+      "answer": "September 1, 2026",
+      "aliases": [
+        "Sep 1, 2026",
+        "Sept 1, 2026",
+        "September 1st, 2026",
+        "Sep 1st, 2026",
+        "09/01/2026",
+        "2026-09-01",
+        "09.01.2026",
+        "The first of September, 2026"
+      ],
+      "knowable_from": "2026-04-20T00:00:00Z",
+      "topic": "business"
+    },
+    {
+      "id": "uk-pm-2026",
+      "question": "Who succeeded Keir Starmer as Prime Minister of the United Kingdom in July 2026?",
+      "answer": "Andy Burnham",
+      "aliases": [
+        "Burnham",
+        "The Rt Hon Andy Burnham MP"
+      ],
+      "knowable_from": "2026-07-17T00:00:00Z",
+      "topic": "world events"
+    },
+    {
+      "id": "china-nepal-floods-2026",
+      "question": "Where did the fatal flash floods and debris flows happen on August 26, 2026?",
+      "answer": "China-Nepal border",
+      "aliases": [
+        "Himalayas",
+        "China and Nepal border"
+      ],
+      "knowable_from": "2026-08-26T00:00:00Z",
+      "topic": "climate events"
+    },
+    {
+      "id": "google-ai2026",
+      "question": "Google released a new version of its Gemini Flash model on 2 September 2026. Which version number did it carry?",
+      "answer": "Gemini 3.8 Flash",
+      "aliases": [
+        "3.8",
+        "3.8 Flash",
+        "gemini-3.8-flash"
+      ],
+      "knowable_from": "2026-09-02T00:00:00Z",
+      "topic": "technology"
     }
   ],
   "review": "Cases must be real facts with correct knowable_from dates: a wrong date turns a control into a false leak and silently corrupts the score. Verify anything you did not add yourself, and see docs/kb/add-a-probe-case.md before extending. Run `chronoguard cases --as-of <date>` to check coverage and catch giveaways."
