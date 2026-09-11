@@ -604,3 +604,82 @@ class TestFailOn:
         codes = [cli.EXIT_OK, cli.EXIT_INFRASTRUCTURE, cli.EXIT_BAD_ARGUMENT, cli.EXIT_THRESHOLD]
         assert codes == [0, 1, 2, 3]
         assert len(set(codes)) == 4
+
+
+class TestBackendSelection:
+    """--backend picks the client, and everything downstream is unchanged."""
+
+    def test_ollama_is_the_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        built = {}
+        monkeypatch.setattr(cli, "OllamaClient", lambda **kw: built.setdefault("ollama", kw) or _Stub())
+        runner.invoke(app, ["models"])
+        assert "ollama" in built
+
+    def test_openai_compat_is_selectable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        built = {}
+        monkeypatch.setattr(
+            cli, "OpenAICompatClient", lambda url=None, **kw: built.setdefault("url", url) or _Stub()
+        )
+        runner.invoke(app, ["models", "--backend", "openai-compat", "--base-url", "http://x:8000"])
+        assert built["url"] == "http://x:8000"
+
+    def test_base_url_alone_implies_the_backend(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Naming an OpenAI API root and getting an Ollama client is never what
+        # anyone meant.
+        built = {}
+        monkeypatch.setattr(
+            cli, "OpenAICompatClient", lambda url=None, **kw: built.setdefault("url", url) or _Stub()
+        )
+        monkeypatch.setattr(cli, "OllamaClient", lambda **kw: pytest.fail("should not build ollama"))
+        runner.invoke(app, ["models", "--base-url", "http://x:8000"])
+        assert built["url"] == "http://x:8000"
+
+    def test_an_unknown_backend_is_rejected(self) -> None:
+        result = runner.invoke(app, ["models", "--backend", "anthropic"])
+        assert result.exit_code != 0
+        assert "openai-compat" in plain(result)
+
+    def test_a_backend_failure_still_exits_one(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from chronoguard.backends import BackendUnavailable
+
+        def boom(url=None, **kw):
+            raise BackendUnavailable("nothing at http://x:8000/v1")
+
+        monkeypatch.setattr(cli, "OpenAICompatClient", boom)
+        result = runner.invoke(app, ["models", "--base-url", "http://x:8000"])
+        assert result.exit_code == cli.EXIT_INFRASTRUCTURE
+
+    def test_a_non_ollama_failure_does_not_say_ollama_serve(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from chronoguard.backends import BackendUnavailable
+
+        def boom(url=None, **kw):
+            raise BackendUnavailable("nothing there")
+
+        monkeypatch.setattr(cli, "OpenAICompatClient", boom)
+        out = plain(runner.invoke(app, ["models", "--base-url", "http://x:8000"]))
+        assert "ollama serve" not in out
+        assert "--base-url" in out
+
+    def test_every_model_backed_command_takes_the_flag(self) -> None:
+        for command in ("models", "run", "probe", "report"):
+            assert "--backend" in plain(runner.invoke(app, [command, "--help"]))
+
+    def test_check_does_not_take_it(self) -> None:
+        # It never talks to a model, so offering a backend would be a lie.
+        assert "--backend" not in plain(runner.invoke(app, ["check", "--help"]))
+
+
+class _Stub:
+    """Minimal backend stand-in for the selection tests."""
+
+    host = "http://stub"
+
+    def list_models(self):
+        from chronoguard.backends import ModelInfo
+
+        return [ModelInfo(name="stub-model")]
+
+    def supports_tools(self, model: str) -> bool:
+        return False

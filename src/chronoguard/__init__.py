@@ -66,6 +66,12 @@ from chronoguard.interception import (
     guard_tool,
     guarded_tool,
 )
+from chronoguard.backends import (
+    BackendTimeout,
+    BackendUnavailable,
+    ChatBackend,
+    OpenAICompatClient,
+)
 from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.preflight import CorpusReport, inspect_corpus, load_rows
 from chronoguard.probe import (
@@ -84,6 +90,9 @@ __all__ = [
     "AgentRun",
     "AgentRunner",
     "AuditLog",
+    "BackendTimeout",
+    "BackendUnavailable",
+    "ChatBackend",
     "Claim",
     "ClaimClassifier",
     "ClaimLabel",
@@ -101,6 +110,7 @@ __all__ = [
     "ModelCutoffs",
     "OllamaClient",
     "OllamaUnavailable",
+    "OpenAICompatClient",
     "ProbeCase",
     "ProbeReport",
     "RecordAdapter",

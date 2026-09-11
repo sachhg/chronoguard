@@ -349,10 +349,19 @@ class AgentRunner:
                 name = str(function.get("name") or "")
                 arguments = function.get("arguments") or {}
                 if isinstance(arguments, str):
+                    # The OpenAI API encodes arguments as a JSON string where
+                    # Ollama sends an object. Both arrive here.
                     arguments = extract_json_object(arguments) or {}
                 observation = self._call_tool(run, name, arguments)
                 messages.append(
-                    ChatMessage(role="tool", content=observation, tool_name=name or None)
+                    ChatMessage(
+                        role="tool",
+                        content=observation,
+                        tool_name=name or None,
+                        # Ollama matches a result to its call by name, the
+                        # OpenAI API by id. Carry both and let the backend pick.
+                        tool_call_id=str(call.get("id")) if call.get("id") else None,
+                    )
                 )
 
         run.stopped_because = "max_steps"

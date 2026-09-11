@@ -6,6 +6,10 @@ calling, and hold a chat. No streaming, no embeddings, no pulls.
 Models are discovered at runtime through `/api/tags`. Nothing here hardcodes a
 model name, because which models you have installed is your business and any
 list baked in here would be wrong by next month.
+
+The wire types and exceptions live in `chronoguard.backends` so every backend
+can share them, and are re-exported here because that's where they started and
+plenty of code imports them from this module.
 """
 
 from __future__ import annotations
@@ -14,7 +18,15 @@ import os
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
+
+from chronoguard.backends import (
+    BackendTimeout,
+    BackendUnavailable,
+    ChatMessage,
+    ChatResponse,
+    ModelInfo,
+    normalize_host,
+)
 
 __all__ = [
     "ChatMessage",
@@ -24,16 +36,17 @@ __all__ = [
     "OllamaTimeout",
     "OllamaUnavailable",
     "default_host",
+    "normalize_host",
 ]
 
 DEFAULT_HOST = "http://localhost:11434"
 
 
-class OllamaUnavailable(RuntimeError):
+class OllamaUnavailable(BackendUnavailable):
     """The server isn't reachable, or a request to it failed."""
 
 
-class OllamaTimeout(OllamaUnavailable):
+class OllamaTimeout(BackendTimeout, OllamaUnavailable):
     """The server is reachable but answered too slowly.
 
     Separate from OllamaUnavailable because the advice differs. "Start ollama
@@ -45,78 +58,6 @@ class OllamaTimeout(OllamaUnavailable):
 def default_host() -> str:
     """Where to look for Ollama. Honours OLLAMA_HOST, scheme optional."""
     return normalize_host(os.environ.get("OLLAMA_HOST") or DEFAULT_HOST)
-
-
-def normalize_host(host: str) -> str:
-    """`localhost:11434` and `http://localhost:11434/` both work."""
-    host = host.strip().rstrip("/")
-    if not host.startswith(("http://", "https://")):
-        host = f"http://{host}"
-    return host
-
-
-class ModelInfo(BaseModel):
-    """One installed model, as reported by `/api/tags`."""
-
-    model_config = ConfigDict(extra="ignore", protected_namespaces=())
-
-    name: str
-    family: str | None = None
-    parameter_size: str | None = None
-    size_bytes: int | None = None
-
-    @classmethod
-    def from_tag(cls, payload: dict[str, Any]) -> ModelInfo:
-        details = payload.get("details") or {}
-        return cls(
-            name=payload.get("name") or payload.get("model") or "",
-            family=details.get("family"),
-            parameter_size=details.get("parameter_size"),
-            size_bytes=payload.get("size"),
-        )
-
-    def __str__(self) -> str:
-        bits = [self.name]
-        if self.parameter_size:
-            bits.append(f"({self.parameter_size})")
-        return " ".join(bits)
-
-
-class ChatMessage(BaseModel):
-    """One turn in a chat."""
-
-    model_config = ConfigDict(extra="allow")
-
-    role: str
-    content: str = ""
-    tool_calls: list[dict[str, Any]] | None = None
-    tool_name: str | None = None
-
-    def to_payload(self) -> dict[str, Any]:
-        out: dict[str, Any] = {"role": self.role, "content": self.content}
-        if self.tool_calls:
-            out["tool_calls"] = self.tool_calls
-        if self.tool_name:
-            out["tool_name"] = self.tool_name
-        return out
-
-
-class ChatResponse(BaseModel):
-    """What `/api/chat` gave back."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    model: str = ""
-    message: ChatMessage = Field(default_factory=lambda: ChatMessage(role="assistant"))
-    done: bool = True
-
-    @property
-    def content(self) -> str:
-        return self.message.content or ""
-
-    @property
-    def tool_calls(self) -> list[dict[str, Any]]:
-        return self.message.tool_calls or []
 
 
 class OllamaClient:

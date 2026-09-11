@@ -14,7 +14,13 @@ from chronoguard.agent import AgentConfig, run_agent
 from chronoguard.fixtures import FIXTURE_AS_OF, build_fixture_toolset
 from chronoguard.guard import GuardPolicy, TemporalGuard
 from chronoguard.interception import AuditLog, MappingAdapter
-from chronoguard.ollama import OllamaClient, OllamaTimeout, OllamaUnavailable
+from chronoguard.backends import (
+    BackendTimeout,
+    BackendUnavailable,
+    ChatBackend,
+    OpenAICompatClient,
+)
+from chronoguard.ollama import OllamaClient, OllamaUnavailable
 from chronoguard.preflight import inspect_corpus, load_rows
 from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
 from chronoguard.report import RISK_ORDER, ScenarioConfig, risk_at_least, run_scenario
@@ -27,6 +33,26 @@ EXIT_BAD_ARGUMENT = 2
 """An as_of with no offset, an unreadable corpus, an unknown policy."""
 EXIT_THRESHOLD = 3
 """The run completed and --fail-on said this result is not acceptable."""
+
+#: Backends the CLI can build. The library takes any ChatBackend.
+BACKENDS = ("ollama", "openai-compat")
+
+
+def _resolve(name: str, host: str | None, base_url: str | None) -> ChatBackend:
+    """Build the requested backend.
+
+    Passing --base-url selects openai-compat on its own, because naming an
+    OpenAI API root and then getting an Ollama client is never what anyone
+    meant.
+    """
+    if base_url and name == "ollama":
+        name = "openai-compat"
+    if name == "ollama":
+        return OllamaClient(host=host)
+    if name == "openai-compat":
+        return OpenAICompatClient(base_url or host)
+    raise typer.BadParameter(f"--backend must be one of {', '.join(BACKENDS)}, got {name!r}")
+
 
 #: --fail-on values for `check`, mapped to which severities trip them.
 _CHECK_SEVERITIES = {
@@ -169,16 +195,23 @@ def check(
 @app.command()
 def models(
     host: Annotated[Optional[str], typer.Option(help="Ollama host. Defaults to OLLAMA_HOST.")] = None,
+    backend: Annotated[
+        str, typer.Option(help="ollama or openai-compat.")
+    ] = "ollama",
+    base_url: Annotated[
+        Optional[str],
+        typer.Option(help="Root of an OpenAI-compatible API. Implies --backend openai-compat."),
+    ] = None,
 ) -> None:
-    """List locally installed Ollama models and whether they can call tools."""
+    """List the models a backend is offering, and whether they can call tools."""
     try:
-        client = OllamaClient(host=host)
+        client = _resolve(backend, host, base_url)
         installed = client.list_models()
-    except OllamaUnavailable as exc:
+    except BackendUnavailable as exc:
         raise _die(exc) from exc
 
     if not installed:
-        typer.echo(f"No models installed on {client.host}. Try `ollama pull gemma3:4b`.")
+        typer.echo(f"No models offered by {client.host}. Try `ollama pull gemma3:4b`.")
         raise typer.Exit(code=EXIT_INFRASTRUCTURE)
 
     typer.echo(f"{len(installed)} model(s) on {client.host}:\n")
@@ -203,6 +236,13 @@ def run(
         str, typer.Option(help="strict drops post-as-of evidence, warn keeps and flags it.")
     ] = "strict",
     host: Annotated[Optional[str], typer.Option(help="Ollama host.")] = None,
+    backend: Annotated[
+        str, typer.Option(help="ollama or openai-compat.")
+    ] = "ollama",
+    base_url: Annotated[
+        Optional[str],
+        typer.Option(help="Root of an OpenAI-compatible API. Implies --backend openai-compat."),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit the run as JSON.")] = False,
 ) -> None:
     """Run one agent task against the fixture corpora, guarded at --as-of.
@@ -223,8 +263,8 @@ def run(
     )
 
     try:
-        result = run_agent(config, tools, client=OllamaClient(host=host))
-    except OllamaUnavailable as exc:
+        result = run_agent(config, tools, client=_resolve(backend, host, base_url))
+    except BackendUnavailable as exc:
         raise _die(exc) from exc
 
     if as_json:
@@ -273,6 +313,13 @@ def probe(
         Optional[int], typer.Option(help="Cap on control questions asked.")
     ] = None,
     host: Annotated[Optional[str], typer.Option(help="Ollama host.")] = None,
+    backend: Annotated[
+        str, typer.Option(help="ollama or openai-compat.")
+    ] = "ollama",
+    base_url: Annotated[
+        Optional[str],
+        typer.Option(help="Root of an OpenAI-compatible API. Implies --backend openai-compat."),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
 ) -> None:
     """Measure what a model already knows about the future, with no tools at all.
@@ -281,7 +328,7 @@ def probe(
     weights, not from anything you handed it.
     """
     try:
-        client = OllamaClient(host=host)
+        client = _resolve(backend, host, base_url)
         chosen = model or client.pick_model()
         report = LeakageProbe(
             client,
@@ -289,7 +336,7 @@ def probe(
             cutoffs=load_model_cutoffs(cutoffs) if cutoffs else None,
             judge_model=judge,
         ).run(chosen, as_of, max_future_cases=max_future, max_control_cases=max_control)
-    except OllamaUnavailable as exc:
+    except BackendUnavailable as exc:
         raise _die(exc) from exc
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
@@ -371,6 +418,13 @@ def report(
         bool, typer.Option("--json", help="Print the JSON summary instead of the text report.")
     ] = False,
     host: Annotated[Optional[str], typer.Option(help="Ollama host.")] = None,
+    backend: Annotated[
+        str, typer.Option(help="ollama or openai-compat.")
+    ] = "ollama",
+    base_url: Annotated[
+        Optional[str],
+        typer.Option(help="Root of an OpenAI-compatible API. Implies --backend openai-compat."),
+    ] = None,
 ) -> None:
     """Run a full scenario: agent run, leakage probe, claim classification.
 
@@ -405,8 +459,8 @@ def report(
         raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
 
     try:
-        result = run_scenario(config, client=OllamaClient(host=host))
-    except OllamaUnavailable as exc:
+        result = run_scenario(config, client=_resolve(backend, host, base_url))
+    except BackendUnavailable as exc:
         raise _die(exc) from exc
 
     summary = result.summary()
@@ -429,11 +483,19 @@ def report(
         raise typer.Exit(code=EXIT_THRESHOLD)
 
 
-def _die(exc: OllamaUnavailable) -> typer.Exit:
-    """Report an Ollama failure with advice that matches what actually went wrong."""
+def _die(exc: BackendUnavailable) -> typer.Exit:
+    """Report a backend failure with advice that matches what actually went wrong.
+
+    A timeout means the server is up and the model is slow, so telling anyone to
+    start a server is wrong. Everything else gets start-up advice, specific to
+    Ollama when that is what failed and generic when it is some other backend.
+    """
     typer.secho(str(exc), fg=typer.colors.RED, err=True)
-    if not isinstance(exc, OllamaTimeout):
-        typer.echo("Start one with `ollama serve`.", err=True)
+    if not isinstance(exc, BackendTimeout):
+        if isinstance(exc, OllamaUnavailable):
+            typer.echo("Start one with `ollama serve`.", err=True)
+        else:
+            typer.echo("Check the server is running and --base-url is right.", err=True)
     return typer.Exit(code=EXIT_INFRASTRUCTURE)
 
 
