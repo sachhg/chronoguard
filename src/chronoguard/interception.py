@@ -23,6 +23,11 @@ small mapping and the filtering logic stays in one place.
     web_search("meridian pricing")   # only pre-as-of hits come back
     audit.filtered_count             # how many got dropped, for the report
 
+Async tools work the same way. Wrap an `async def` and you get back something
+you await, which awaits the real tool and then filters what it returned. Same
+guard, same audit log, same everything else, so a codebase can mix the two
+freely.
+
 Only wrap tools that return evidence. A calculator has nothing to filter and
 wrapping it just hands the agent an empty list.
 """
@@ -292,7 +297,8 @@ class AuditLog(BaseModel):
 class GuardedTool:
     """A tool callable with the temporal filter bolted onto its return value.
 
-    Call it exactly like the function it wraps. The name, docstring and signature are copied across
+    Call it exactly like the function it wraps, including awaiting it if the
+    wrapped tool is async. The name, docstring and signature are copied across
     so agent frameworks can still build a schema from it.
 
     Args:
@@ -322,11 +328,27 @@ class GuardedTool:
         self.audit = audit if audit is not None else AuditLog()
         self.render = render
         self.name = name or getattr(fn, "__name__", fn.__class__.__name__)
+        self.is_async = _is_async_callable(fn)
         functools.update_wrapper(self, fn)
         self.__name__ = self.name
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        raw = self.fn(*args, **kwargs)
+        """Run the tool and filter what it returned.
+
+        On an async tool this returns a coroutine, so the call site awaits it
+        exactly as it would have awaited the unwrapped tool. Filtering happens
+        inside that coroutine, after the await, because there is nothing to
+        filter until the tool has actually produced its results.
+        """
+        if self.is_async:
+            return self._acall(args, kwargs)
+        return self._finish(self.fn(*args, **kwargs), args, kwargs)
+
+    async def _acall(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+        return self._finish(await self.fn(*args, **kwargs), args, kwargs)
+
+    def _finish(self, raw: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+        """Adapt, filter, audit, render. Identical for both call styles."""
         result = self.guard.filter(self.adapter.to_records(raw))
         self.audit.record(
             ToolCall(
@@ -338,7 +360,8 @@ class GuardedTool:
         return self.render(result) if self.render else result.kept
 
     def __repr__(self) -> str:
-        return f"GuardedTool({self.name!r}, as_of={self.guard.as_of.isoformat()!r})"
+        kind = "async " if self.is_async else ""
+        return f"GuardedTool({kind}{self.name!r}, as_of={self.guard.as_of.isoformat()!r})"
 
     @property
     def calls(self) -> list[ToolCall]:
@@ -381,6 +404,19 @@ def guarded_tool(
         return GuardedTool(fn, guard, adapter, **kwargs)
 
     return decorate
+
+
+def _is_async_callable(fn: Callable[..., Any]) -> bool:
+    """Whether awaiting `fn(...)` is the right way to call it.
+
+    `iscoroutinefunction` alone misses a class whose `__call__` is async, and
+    tools get written both ways. `functools.partial` is unwrapped by
+    `iscoroutinefunction` on 3.11+, so it needs no special case here.
+    """
+    if inspect.iscoroutinefunction(fn):
+        return True
+    call = getattr(type(fn), "__call__", None)
+    return call is not None and inspect.iscoroutinefunction(call)
 
 
 def _describe_arguments(

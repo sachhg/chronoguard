@@ -6,6 +6,7 @@ independent of corpus content.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from datetime import datetime, timezone
 
@@ -368,6 +369,128 @@ class TestAuditLog:
         blob = audit.model_dump_json()
         assert "u1" in blob
         assert isinstance(ToolCall.model_validate(audit.calls[0].model_dump()), ToolCall)
+
+
+async def async_hits() -> list[dict]:
+    """The same raw output as `hits`, behind an await."""
+    return hits()
+
+
+class TestAsyncTools:
+    """Wrapping an `async def` has to behave exactly like wrapping its sync twin.
+
+    This is the shape every mainstream agent framework hands you, so getting it
+    wrong means ChronoGuard can't guard anything real.
+    """
+
+    def test_it_is_recognised_as_async(self, guard: TemporalGuard) -> None:
+        assert guard_tool(async_hits, guard, WEB_ADAPTER).is_async is True
+        assert guard_tool(hits, guard, WEB_ADAPTER).is_async is False
+
+    def test_it_filters_the_awaited_result(self, guard: TemporalGuard) -> None:
+        tool = guard_tool(async_hits, guard, WEB_ADAPTER)
+        kept = asyncio.run(tool())
+        assert [r.source_id for r in kept] == ["u1"]
+
+    def test_it_keeps_exactly_what_the_sync_twin_keeps(self, guard: TemporalGuard) -> None:
+        sync_kept = guard_tool(hits, guard, WEB_ADAPTER)()
+        async_kept = asyncio.run(guard_tool(async_hits, guard, WEB_ADAPTER)())
+        assert [r.source_id for r in async_kept] == [r.source_id for r in sync_kept]
+
+    def test_the_future_token_never_survives(self, guard: TemporalGuard) -> None:
+        kept = asyncio.run(guard_tool(async_hits, guard, WEB_ADAPTER)())
+        assert all("FUTURE-TOKEN" not in r.content for r in kept)
+
+    def test_calling_it_returns_something_awaitable(self, guard: TemporalGuard) -> None:
+        tool = guard_tool(async_hits, guard, WEB_ADAPTER)
+        pending = tool()
+        assert inspect.isawaitable(pending)
+        asyncio.run(pending)
+
+    def test_nothing_is_audited_until_it_is_awaited(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        # Filtering can't happen before the tool has produced results, so the
+        # log must stay empty until the coroutine actually runs.
+        tool = guard_tool(async_hits, guard, WEB_ADAPTER, audit=audit)
+        pending = tool()
+        assert audit.call_count == 0
+        asyncio.run(pending)
+        assert audit.call_count == 1
+
+    def test_it_files_the_same_audit_entry(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        asyncio.run(guard_tool(async_hits, guard, WEB_ADAPTER, audit=audit)())
+        assert audit.counts == {
+            "allowed": 1,
+            "future": 2,
+            "undated": 1,
+            "unparseable": 1,
+            "revised": 0,
+        }
+
+    def test_sync_and_async_tools_share_one_log(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        guard_tool(hits, guard, WEB_ADAPTER, audit=audit, name="sync")()
+        asyncio.run(guard_tool(async_hits, guard, WEB_ADAPTER, audit=audit, name="async")())
+        assert audit.call_count == 2
+        assert set(audit.by_tool()) == {"sync", "async"}
+
+    def test_arguments_are_recorded(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        async def search(query: str, limit: int = 5) -> list[dict]:
+            return hits()
+
+        asyncio.run(guard_tool(search, guard, WEB_ADAPTER, audit=audit)("meridian"))
+        assert audit.calls[0].arguments == {"query": "meridian", "limit": 5}
+
+    def test_the_render_hook_still_applies(self, guard: TemporalGuard) -> None:
+        tool = guard_tool(async_hits, guard, WEB_ADAPTER, render=lambda r: r.kept_count)
+        assert asyncio.run(tool()) == 1
+
+    def test_metadata_is_copied_for_schema_building(self, guard: TemporalGuard) -> None:
+        async def search(query: str) -> list[dict]:
+            """Search the archive."""
+            return hits()
+
+        tool = guard_tool(search, guard, WEB_ADAPTER)
+        assert tool.__name__ == "search"
+        assert tool.__doc__ == "Search the archive."
+        assert list(inspect.signature(tool).parameters) == ["query"]
+
+    def test_repr_says_it_is_async(self, guard: TemporalGuard) -> None:
+        assert "async" in repr(guard_tool(async_hits, guard, WEB_ADAPTER))
+        assert "async" not in repr(guard_tool(hits, guard, WEB_ADAPTER))
+
+    def test_an_object_with_an_async_call_is_handled(self, guard: TemporalGuard) -> None:
+        class Retriever:
+            async def __call__(self, query: str) -> list[dict]:
+                return hits()
+
+        tool = guard_tool(Retriever(), guard, WEB_ADAPTER, name="retriever")
+        assert tool.is_async is True
+        assert [r.source_id for r in asyncio.run(tool("x"))] == ["u1"]
+
+    def test_an_object_with_a_sync_call_is_not_treated_as_async(self, guard: TemporalGuard) -> None:
+        class Retriever:
+            def __call__(self, query: str) -> list[dict]:
+                return hits()
+
+        assert guard_tool(Retriever(), guard, WEB_ADAPTER, name="retriever").is_async is False
+
+    def test_the_tool_raising_propagates(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        async def broken() -> list[dict]:
+            raise RuntimeError("upstream is down")
+
+        tool = guard_tool(broken, guard, WEB_ADAPTER, audit=audit)
+        with pytest.raises(RuntimeError, match="upstream is down"):
+            asyncio.run(tool())
+        assert audit.call_count == 0
+
+    def test_concurrent_calls_all_land_in_the_log(self, guard: TemporalGuard, audit: AuditLog) -> None:
+        tool = guard_tool(async_hits, guard, WEB_ADAPTER, audit=audit)
+
+        async def run_all() -> None:
+            await asyncio.gather(*(tool() for _ in range(4)))
+
+        asyncio.run(run_all())
+        assert audit.call_count == 4
+        assert audit.kept_count == 4
 
 
 class TestMappingAdapterRevisions:
