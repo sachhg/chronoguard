@@ -202,7 +202,8 @@ Shared: `--host` (Ollama host), `--model`, `--as-of`. `check` needs neither
 `--host` nor `--model`, because it never talks to one.
 
 `check`: `--published-key`, `--updated-key`, `--source-key`, `--content-key`,
-`--results-key`, `--policy`, `--revisions`, `--allow-undated`, `--json`.
+`--results-key`, `--policy`, `--revisions`, `--allow-undated`, `--fail-on`,
+`--json`.
 
 `run`: `--mode`, `--max-steps`, `--policy`, `--json`.
 
@@ -210,11 +211,41 @@ Shared: `--host` (Ollama host), `--model`, `--as-of`. `check` needs neither
 `--json`.
 
 `report`: `--judge`, `--mode`, `--policy`, `--max-steps`, `--max-claims`,
-`--max-future`, `--max-control`, `--skip-probe`, `--skip-claims`, `--json`,
-`--json-out PATH`.
+`--max-future`, `--max-control`, `--skip-probe`, `--skip-claims`, `--fail-on`,
+`--json`, `--json-out PATH`.
 
-Exit codes: `1` for an unreachable Ollama server, `2` for a bad argument such as
-an `as_of` without an offset.
+### Exit codes
+
+| Code | Means |
+| --- | --- |
+| `0` | Ran fine, nothing tripped a threshold. |
+| `1` | No Ollama server, or no models installed. |
+| `2` | Bad argument: an `as_of` without an offset, an unreadable corpus, an unknown policy. |
+| `3` | The command completed and `--fail-on` says the result is unacceptable. |
+
+`2` and `3` are separate on purpose. A misconfigured run and a run that came
+back badly are different events, and CI usually wants to shout about the first
+and gate on the second.
+
+### --fail-on
+
+Off by default (`never`) on both commands, so adding it breaks nothing.
+
+```bash
+chronoguard check corpus.json --as-of 2024-03-01T00:00:00Z --fail-on error
+chronoguard report "..." --fail-on elevated
+```
+
+`report` takes a risk level and fires when the headline risk reaches it or
+worse. The order is `low` < `unknown` < `elevated` < `high`, so gating on `low`
+also catches a run that couldn't measure something.
+
+`check` takes a finding severity, `error` or `warning`. An unmapped revision
+field is a warning rather than an error, so `warning` is the stricter setting.
+
+Output comes first either way. The report is printed and `--json-out` written
+before the threshold is checked, because the run that failed the build is the
+one whose output you need to read.
 
 ## Environment
 

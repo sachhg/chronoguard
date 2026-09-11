@@ -454,3 +454,153 @@ class TestCheckCommand:
         ]))
         assert "would not produce a meaningful run" not in out
         assert "revised=1" in out
+
+
+class TestFailOn:
+    """Exit codes are the whole reason this is usable in CI.
+
+    Without them a red run and a green run look identical to a shell, and a
+    gate that can't fail gets run once by hand and then forgotten.
+    """
+
+    AS_OF = "2023-06-01T00:00:00Z"
+    BEFORE = "2023-01-15T00:00:00Z"
+    AFTER = "2023-09-15T00:00:00Z"
+
+    def corpus(self, tmp_path, rows):
+        path = tmp_path / "corpus.json"
+        path.write_text(json.dumps(rows), encoding="utf-8")
+        return str(path)
+
+    def all_past(self, tmp_path):
+        return self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE},
+            {"id": "b", "content": "y", "published_at": self.BEFORE},
+        ])
+
+    def straddling(self, tmp_path):
+        return self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE},
+            {"id": "b", "content": "y", "published_at": self.AFTER},
+        ])
+
+    def _wire(self, monkeypatch, **kwargs):
+        client = ScenarioClient(
+            [action("web_search", query="meridian price"), answer("Summer, no price yet.")],
+            claims=["Halden confirmed a summer window."],
+            **kwargs,
+        )
+        monkeypatch.setattr(cli, "OllamaClient", lambda **kw: client)
+        return client
+
+    # check
+
+    def test_check_defaults_to_never_failing(self, tmp_path) -> None:
+        assert runner.invoke(app, ["check", self.all_past(tmp_path), "--as-of", self.AS_OF]).exit_code == 0
+
+    def test_check_fails_on_an_error(self, tmp_path) -> None:
+        result = runner.invoke(
+            app, ["check", self.all_past(tmp_path), "--as-of", self.AS_OF, "--fail-on", "error"]
+        )
+        assert result.exit_code == cli.EXIT_THRESHOLD
+
+    def test_check_passes_a_healthy_corpus(self, tmp_path) -> None:
+        result = runner.invoke(
+            app, ["check", self.straddling(tmp_path), "--as-of", self.AS_OF, "--fail-on", "error"]
+        )
+        assert result.exit_code == 0, plain(result)
+
+    def test_check_warning_level_is_stricter_than_error(self, tmp_path) -> None:
+        # An unmapped revision field is a warning, not an error, so the same
+        # corpus passes one threshold and fails the other.
+        path = self.corpus(tmp_path, [
+            {"id": "a", "content": "x", "published_at": self.BEFORE, "last_modified": self.AFTER},
+            {"id": "b", "content": "y", "published_at": self.BEFORE, "last_modified": self.AFTER},
+            {"id": "c", "content": "z", "published_at": self.AFTER, "last_modified": self.AFTER},
+        ])
+        args = ["check", path, "--as-of", self.AS_OF, "--fail-on"]
+        assert runner.invoke(app, [*args, "error"]).exit_code == 0
+        assert runner.invoke(app, [*args, "warning"]).exit_code == cli.EXIT_THRESHOLD
+
+    def test_check_still_prints_the_report_when_it_fails(self, tmp_path) -> None:
+        result = runner.invoke(
+            app, ["check", self.all_past(tmp_path), "--as-of", self.AS_OF, "--fail-on", "error"]
+        )
+        assert "rows     2" in plain(result)
+
+    def test_check_json_output_survives_a_failure(self, tmp_path) -> None:
+        # A CI job wants the machine summary even on the run that failed it.
+        result = runner.invoke(app, [
+            "check", self.all_past(tmp_path), "--as-of", self.AS_OF,
+            "--fail-on", "error", "--json",
+        ])
+        assert result.exit_code == cli.EXIT_THRESHOLD
+        assert json.loads(plain(result).split("\n--fail-on")[0])["usable"] is False
+
+    def test_check_rejects_an_unknown_threshold(self, tmp_path) -> None:
+        result = runner.invoke(
+            app, ["check", self.all_past(tmp_path), "--fail-on", "maybe"]
+        )
+        assert result.exit_code == cli.EXIT_BAD_ARGUMENT
+
+    # report
+
+    def test_report_defaults_to_never_failing(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "task", "--skip-probe", "--skip-claims"])
+        assert result.exit_code == 0
+
+    def test_report_fails_when_the_risk_reaches_the_threshold(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "task", "--skip-probe", "--skip-claims", "--fail-on", "low"]
+        )
+        assert result.exit_code == cli.EXIT_THRESHOLD
+
+    def test_report_passes_below_the_threshold(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "task", "--skip-probe", "--skip-claims", "--fail-on", "high"]
+        )
+        assert result.exit_code == 0, plain(result)
+
+    def test_report_names_the_risk_it_failed_on(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "task", "--skip-probe", "--skip-claims", "--fail-on", "low"]
+        )
+        assert "--fail-on low" in plain(result)
+
+    def test_report_still_prints_the_report_when_it_fails(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(
+            app, ["report", "task", "--skip-probe", "--skip-claims", "--fail-on", "low"]
+        )
+        assert "ChronoGuard report" in plain(result)
+
+    def test_report_json_out_is_written_even_on_a_failure(self, monkeypatch, tmp_path) -> None:
+        self._wire(monkeypatch)
+        target = tmp_path / "summary.json"
+        result = runner.invoke(app, [
+            "report", "task", "--skip-probe", "--skip-claims",
+            "--json-out", str(target), "--fail-on", "low",
+        ])
+        assert result.exit_code == cli.EXIT_THRESHOLD
+        assert json.loads(target.read_text())["task"] == "task"
+
+    def test_report_rejects_an_unknown_threshold(self, monkeypatch) -> None:
+        self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "task", "--fail-on", "catastrophic"])
+        assert result.exit_code == cli.EXIT_BAD_ARGUMENT
+
+    def test_a_bad_as_of_still_beats_fail_on(self, monkeypatch) -> None:
+        # Argument errors are exit 2, not exit 3. A misconfigured run is not
+        # the same as a run that came back badly.
+        self._wire(monkeypatch)
+        result = runner.invoke(app, ["report", "task", "--as-of", "2023-06-01", "--fail-on", "low"])
+        assert result.exit_code == cli.EXIT_BAD_ARGUMENT
+
+    def test_the_exit_codes_are_distinct(self) -> None:
+        codes = [cli.EXIT_OK, cli.EXIT_INFRASTRUCTURE, cli.EXIT_BAD_ARGUMENT, cli.EXIT_THRESHOLD]
+        assert codes == [0, 1, 2, 3]
+        assert len(set(codes)) == 4

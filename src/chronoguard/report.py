@@ -32,9 +32,30 @@ from chronoguard.interception import AuditLog, GuardedTool
 from chronoguard.ollama import OllamaClient
 from chronoguard.probe import LeakageProbe, ProbeReport
 
-__all__ = ["ScenarioConfig", "ScenarioReport", "run_scenario"]
+__all__ = [
+    "RISK_ORDER",
+    "SUMMARY_SCHEMA_VERSION",
+    "ScenarioConfig",
+    "ScenarioReport",
+    "risk_at_least",
+    "run_scenario",
+]
 
 RiskLevel = Literal["high", "elevated", "low", "unknown"]
+
+#: Least to most alarming. `unknown` sits above `low` because a run that could
+#: not measure something is not the same as one that measured it and found
+#: nothing, see docs/kb/verdict-never-reports-unearned-clean.md.
+RISK_ORDER: tuple[RiskLevel, ...] = ("low", "unknown", "elevated", "high")
+
+#: Bumped when a key is removed or its meaning changes. Adding a key does not
+#: bump it, so consumers should ignore keys they do not know.
+SUMMARY_SCHEMA_VERSION = 1
+
+
+def risk_at_least(level: RiskLevel, threshold: RiskLevel) -> bool:
+    """Whether `level` is as alarming as `threshold`, or worse."""
+    return RISK_ORDER.index(level) >= RISK_ORDER.index(threshold)
 
 
 class ScenarioConfig(BaseModel):
@@ -101,8 +122,7 @@ class ScenarioReport(BaseModel):
 
         def raise_to(new: RiskLevel) -> None:
             nonlocal level
-            order = {"low": 0, "unknown": 1, "elevated": 2, "high": 3}
-            if order[new] > order[level]:
+            if RISK_ORDER.index(new) > RISK_ORDER.index(level):
                 level = new
 
         if self.claims and self.claims.leaks:
@@ -157,6 +177,7 @@ class ScenarioReport(BaseModel):
     def summary(self) -> dict[str, Any]:
         """The machine-readable summary. Stable shape, safe to diff across runs."""
         payload: dict[str, Any] = {
+            "schema_version": SUMMARY_SCHEMA_VERSION,
             "chronoguard_version": self.chronoguard_version,
             "generated_at": self.generated_at.isoformat(),
             "as_of": self.config.as_of.isoformat(),

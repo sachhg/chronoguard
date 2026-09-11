@@ -15,7 +15,7 @@ is the point of splitting it up.
 
 Regenerate this file with `python scripts/build_kb_index.py`.
 
-51 notes.
+52 notes.
 
 ## concept
 
@@ -55,6 +55,7 @@ Shapes and interfaces other code depends on.
 - [claim-and-answer-matching](claim-and-answer-matching.md) Matching rules used by the probe, including the short-answer token rule.
 - [claim-label-meanings](claim-label-meanings.md) grounded, ungrounded-but-benign, suspected-parametric-leak, plus the unclassified escape hatch.
 - [evidence-record-contract](evidence-record-contract.md) Fields, the two constructors, and when to use which.
+- [exit-codes](exit-codes.md) What the shell sees from each command, and how a CI job gates on a run.
 - [groundedness-excludes-hedges](groundedness-excludes-hedges.md) Only grounded plus leaked claims count, so a hedge-heavy answer cannot look well grounded.
 - [guarded-tool-contract](guarded-tool-contract.md) What wrapping changes, what it preserves, and what not to wrap.
 - [numbers-are-matched-exactly](numbers-are-matched-exactly.md) fuzzy_match requires every digit run in a variant to appear, because one digit apart is a different fact.

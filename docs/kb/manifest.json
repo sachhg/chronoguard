@@ -1,5 +1,5 @@
 {
-  "note_count": 51,
+  "note_count": 52,
   "types": [
     "concept",
     "contract",
@@ -333,6 +333,23 @@
         "revision-dates-are-a-third-channel"
       ],
       "source": "src/chronoguard/evidence.py"
+    },
+    {
+      "id": "exit-codes",
+      "path": "exit-codes.md",
+      "title": "Exit codes, and why --fail-on defaults to never",
+      "type": "contract",
+      "description": "What the shell sees from each command, and how a CI job gates on a run.",
+      "tags": [
+        "cli",
+        "ci"
+      ],
+      "links": [
+        "check-is-the-no-model-path",
+        "scenario-summary-schema",
+        "verdict-never-reports-unearned-clean"
+      ],
+      "source": "src/chronoguard/cli.py"
     },
     {
       "id": "falsy-zero-limits",
@@ -716,7 +733,8 @@
       ],
       "links": [
         "verdict-never-reports-unearned-clean",
-        "audit-log-is-the-reporting-side"
+        "audit-log-is-the-reporting-side",
+        "exit-codes"
       ],
       "source": "src/chronoguard/report.py"
     },

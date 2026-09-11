@@ -17,7 +17,23 @@ from chronoguard.interception import AuditLog, MappingAdapter
 from chronoguard.ollama import OllamaClient, OllamaTimeout, OllamaUnavailable
 from chronoguard.preflight import inspect_corpus, load_rows
 from chronoguard.probe import LeakageProbe, load_model_cutoffs, load_probe_cases
-from chronoguard.report import ScenarioConfig, run_scenario
+from chronoguard.report import RISK_ORDER, ScenarioConfig, risk_at_least, run_scenario
+
+#: What the shell sees. Documented so a CI job can branch on them.
+EXIT_OK = 0
+EXIT_INFRASTRUCTURE = 1
+"""No Ollama server, no models installed."""
+EXIT_BAD_ARGUMENT = 2
+"""An as_of with no offset, an unreadable corpus, an unknown policy."""
+EXIT_THRESHOLD = 3
+"""The run completed and --fail-on said this result is not acceptable."""
+
+#: --fail-on values for `check`, mapped to which severities trip them.
+_CHECK_SEVERITIES = {
+    "never": lambda severity: False,
+    "error": lambda severity: severity == "error",
+    "warning": lambda severity: severity in ("error", "warning"),
+}
 
 app = typer.Typer(
     name="chronoguard",
@@ -25,7 +41,8 @@ app = typer.Typer(
         "Run LLM agents as if it were a past date, and measure how well the "
         "blinding holds.\n\n"
         "ChronoGuard filters tool results by publication date (tool leakage) "
-        "and probes the model for facts it already knows (parametric leakage)."
+        "and probes the model for facts it already knows (parametric leakage).\n\n"
+        "Exit codes: 0 fine, 1 no Ollama, 2 bad argument, 3 --fail-on threshold hit."
     ),
     no_args_is_help=True,
     add_completion=False,
@@ -81,6 +98,12 @@ def check(
     allow_undated: Annotated[
         bool, typer.Option("--allow-undated", help="Admit records with no usable date.")
     ] = False,
+    fail_on: Annotated[
+        str,
+        typer.Option(
+            help="Exit 3 when a finding reaches this severity: error, warning, or never."
+        ),
+    ] = "never",
     as_json: Annotated[bool, typer.Option("--json", help="Emit the report as JSON.")] = False,
 ) -> None:
     """Show what the guard would do to a corpus, without running a model.
@@ -89,6 +112,14 @@ def check(
     because the two states that waste a run (everything dropped, nothing
     dropped) both look fine from a distance.
     """
+    if fail_on not in _CHECK_SEVERITIES:
+        typer.secho(
+            f"--fail-on must be one of {', '.join(_CHECK_SEVERITIES)}, got {fail_on!r}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT)
+
     try:
         guard = TemporalGuard(
             as_of,
@@ -99,7 +130,7 @@ def check(
         rows = load_rows(corpus, results_key=results_key)
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
 
     adapter = MappingAdapter(
         results_key=None,
@@ -119,12 +150,20 @@ def check(
 
     if as_json:
         typer.echo(json.dumps(report.summary(), indent=2))
-        return
+    else:
+        typer.echo(report.render())
+        if report.errors:
+            typer.echo("")
+            typer.secho("This corpus would not produce a meaningful run.", fg=typer.colors.RED)
 
-    typer.echo(report.render())
-    if report.errors:
-        typer.echo("")
-        typer.secho("This corpus would not produce a meaningful run.", fg=typer.colors.RED)
+    breached = [f for f in report.findings if _CHECK_SEVERITIES[fail_on](f.severity)]
+    if breached:
+        typer.secho(
+            f"\n--fail-on {fail_on}: {len(breached)} finding(s) at or above that severity.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_THRESHOLD)
 
 
 @app.command()
@@ -140,7 +179,7 @@ def models(
 
     if not installed:
         typer.echo(f"No models installed on {client.host}. Try `ollama pull gemma3:4b`.")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_INFRASTRUCTURE)
 
     typer.echo(f"{len(installed)} model(s) on {client.host}:\n")
     for model in installed:
@@ -176,7 +215,7 @@ def run(
         guard = TemporalGuard(as_of, policy=GuardPolicy(policy))
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
 
     tools = build_fixture_toolset(guard, AuditLog())
     config = AgentConfig(
@@ -254,7 +293,7 @@ def probe(
         raise _die(exc) from exc
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
 
     if as_json:
         payload = report.model_dump(mode="json")
@@ -319,6 +358,15 @@ def report(
     json_out: Annotated[
         Optional[str], typer.Option("--json-out", help="Also write the JSON summary to this path.")
     ] = None,
+    fail_on: Annotated[
+        str,
+        typer.Option(
+            help=(
+                "Exit 3 when the headline risk reaches this level: "
+                "low, unknown, elevated, high, or never."
+            )
+        ),
+    ] = "never",
     as_json: Annotated[
         bool, typer.Option("--json", help="Print the JSON summary instead of the text report.")
     ] = False,
@@ -329,6 +377,14 @@ def report(
     Prints a human-readable report and, with --json-out, writes the machine
     summary alongside it.
     """
+    if fail_on != "never" and fail_on not in RISK_ORDER:
+        typer.secho(
+            f"--fail-on must be never or one of {', '.join(RISK_ORDER)}, got {fail_on!r}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT)
+
     try:
         config = ScenarioConfig(
             task=task,
@@ -346,7 +402,7 @@ def report(
         )
     except (ValueError, ValidationError) as exc:
         typer.secho(_first_error(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_BAD_ARGUMENT) from exc
 
     try:
         result = run_scenario(config, client=OllamaClient(host=host))
@@ -364,13 +420,21 @@ def report(
         if json_out:
             typer.echo(f"\nJSON summary written to {json_out}")
 
+    if fail_on != "never" and risk_at_least(result.headline_risk, fail_on):
+        typer.secho(
+            f"\n--fail-on {fail_on}: this run came back {result.headline_risk}.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_THRESHOLD)
+
 
 def _die(exc: OllamaUnavailable) -> typer.Exit:
     """Report an Ollama failure with advice that matches what actually went wrong."""
     typer.secho(str(exc), fg=typer.colors.RED, err=True)
     if not isinstance(exc, OllamaTimeout):
         typer.echo("Start one with `ollama serve`.", err=True)
-    return typer.Exit(code=1)
+    return typer.Exit(code=EXIT_INFRASTRUCTURE)
 
 
 def _first_error(exc: Exception) -> str:

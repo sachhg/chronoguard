@@ -162,6 +162,23 @@ report.render()           # the text report
 report.summary()          # the JSON summary
 ```
 
+## In CI
+
+Both commands can fail a build. Off by default, so adding the flag is the only
+thing that changes behaviour:
+
+```bash
+# does my corpus still straddle the as-of date? no model needed
+chronoguard check corpus.json --as-of 2024-03-01T00:00:00Z --fail-on error
+
+# did this change make the run leakier?
+chronoguard report "$TASK" --fail-on elevated --json-out summary.json
+```
+
+Exit `0` fine, `1` no Ollama, `2` bad argument, `3` threshold hit. The report is
+printed and `--json-out` written before the threshold is checked, because the run
+that failed the build is the one you need to read.
+
 ## Docs
 
 - **[docs/guide.md](docs/guide.md)** walks through every layer with examples.

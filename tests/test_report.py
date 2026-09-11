@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
+from typing import get_args
 
 import pytest
 
@@ -18,7 +19,15 @@ from chronoguard.evidence import EvidenceRecord
 from chronoguard.guard import GuardPolicy, TemporalGuard
 from chronoguard.interception import AuditLog
 from chronoguard.probe import CutoffRisk, ProbeOutcome, ProbeReport
-from chronoguard.report import ScenarioConfig, ScenarioReport, run_scenario
+from chronoguard.report import (
+    RISK_ORDER,
+    SUMMARY_SCHEMA_VERSION,
+    RiskLevel,
+    ScenarioConfig,
+    ScenarioReport,
+    risk_at_least,
+    run_scenario,
+)
 from chronoguard.fixtures import FIXTURE_AS_OF, POST_AS_OF_CANARIES, build_fixture_toolset
 from helpers import ScenarioClient, action, answer
 
@@ -355,3 +364,44 @@ class TestRunScenario:
     def test_a_naive_as_of_is_refused_by_the_config(self) -> None:
         with pytest.raises(Exception):
             ScenarioConfig(task=TASK, as_of="2023-06-01")
+
+
+class TestRiskOrdering:
+    """`--fail-on` compares levels, so the order has to be explicit and tested."""
+
+    def test_the_order_runs_least_to_most_alarming(self) -> None:
+        assert RISK_ORDER == ("low", "unknown", "elevated", "high")
+
+    def test_every_risk_level_has_a_place_in_it(self) -> None:
+        assert set(RISK_ORDER) == set(get_args(RiskLevel))
+
+    def test_a_level_meets_its_own_threshold(self) -> None:
+        assert all(risk_at_least(level, level) for level in RISK_ORDER)
+
+    def test_worse_meets_a_lower_threshold(self) -> None:
+        assert risk_at_least("high", "elevated")
+        assert risk_at_least("elevated", "unknown")
+
+    def test_better_does_not(self) -> None:
+        assert not risk_at_least("low", "elevated")
+        assert not risk_at_least("elevated", "high")
+
+    def test_unknown_ranks_above_low(self) -> None:
+        # A run that could not measure something is not the same as one that
+        # measured it and found nothing. Anyone gating on `low` should be told
+        # about an unmeasured run.
+        assert risk_at_least("unknown", "low")
+        assert not risk_at_least("low", "unknown")
+
+
+class TestSummarySchemaVersion:
+    def test_the_summary_carries_it(self) -> None:
+        assert scenario().summary()["schema_version"] == SUMMARY_SCHEMA_VERSION
+
+    def test_it_is_an_integer(self) -> None:
+        assert isinstance(SUMMARY_SCHEMA_VERSION, int)
+
+    def test_it_is_separate_from_the_package_version(self) -> None:
+        # A patch release must not look like a schema change to a consumer.
+        summary = scenario().summary()
+        assert summary["schema_version"] != summary["chronoguard_version"]
